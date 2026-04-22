@@ -1,0 +1,1839 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acompanhamento de Cobranças</title>
+    <!-- Modern Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <!-- Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --surface-color: #1e293b;
+            --surface-hover: #334155;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --danger: #ef4444;
+            --success: #10b981;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Navbar Glassmorphism */
+        header {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 2.5rem;
+        }
+
+        .top-nav {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 0.5rem 0.2rem;
+            transition: color 0.2s;
+            position: relative;
+        }
+
+        .nav-link:hover { color: #f8fafc; }
+        .nav-link.active { color: var(--primary); }
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0; right: 0;
+            height: 2px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .brand {
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        main {
+            padding: 1.5rem 2rem;
+            flex-grow: 1;
+            margin: 0 auto;
+            width: 100%;
+            transition: all 0.3s ease;
+        }
+
+        h1 {
+            margin-bottom: 2rem;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        /* Grids & Cards */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            border-color: var(--primary);
+        }
+
+        .card:hover::before {
+            opacity: 1;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            line-height: 1.4;
+            color: #f1f5f9;
+        }
+
+        .card-subtitle {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 0.3rem;
+        }
+
+        .badge {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            padding: 0.3rem 0.6rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge.danger {
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+        }
+
+        .badge.warning {
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 1rem;
+            align-items: end;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f8fafc;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .summary-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            backdrop-filter: blur(8px);
+        }
+
+        .summary-card .stat-value { font-size: 1.8rem; }
+        .summary-card.atrasado { border-left: 4px solid var(--danger); }
+        .summary-card.no-prazo { border-left: 4px solid var(--success); }
+        .summary-card.total { border-left: 4px solid var(--primary); }
+
+        .filters-container {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--surface-color);
+            padding: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .filters-container .form-group {
+            margin-bottom: 0;
+            flex: 1;
+            min-width: 150px;
+        }
+
+        /* Tabela Interativa de Notas */
+        .table-container {
+            background: var(--surface-color);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+
+        .table-header-ui {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .back-btn {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            background: var(--surface-hover);
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 1rem 1.5rem;
+            text-align: left;
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        tr:hover {
+            background: var(--surface-hover);
+        }
+
+        tr:last-child {
+            border-bottom: none;
+        }
+
+        /* Modal Overlay Glassmorphism */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: flex-end;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Slide-out Panel */
+        .side-panel {
+            background: var(--surface-color);
+            width: 100%;
+            max-width: 600px;
+            height: 100vh;
+            border-left: 1px solid var(--border-color);
+            box-shadow: -10px 0 30px rgba(0, 0, 0, 0.5);
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-overlay.active .side-panel {
+            transform: translateX(0);
+        }
+
+        .panel-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: white;
+        }
+
+        .panel-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* Timeline View */
+        .timeline {
+            margin-top: 2rem;
+            position: relative;
+            padding-left: 1.5rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .timeline-event {
+            position: relative;
+            margin-bottom: 1.5rem;
+        }
+
+        .timeline-event::before {
+            content: '';
+            position: absolute;
+            left: -1.5rem;
+            top: 0.2rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--primary);
+            transform: translateX(-5px);
+            border: 3px solid var(--surface-color);
+        }
+
+        .event-meta {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.2rem;
+        }
+
+        /* ===== NOTAS VIEW ===== */
+        #notas-view {
+            display: none;
+            flex-direction: column;
+            height: calc(100vh - 80px);
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Topo fixo: header + summary chips + obs */
+        .notas-top {
+            flex-shrink: 0;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px 12px 0 0;
+        }
+
+        .notas-header {
+            padding: 0.9rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-chips {
+            display: flex;
+            gap: 1.2rem;
+            margin-left: auto;
+            align-items: center;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+        }
+
+        .summary-chip b { font-size: 0.95rem; }
+
+        .obs-top-bar {
+            padding: 0.6rem 1.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.8rem;
+        }
+
+        .obs-top-bar textarea {
+            flex: 1;
+            resize: none;
+            min-height: 36px;
+            max-height: 80px;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .obs-top-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 0.2rem;
+            flex-shrink: 0;
+        }
+
+        .obs-meta-top {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+        }
+
+        .btn-obs-save {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.3rem 0.8rem;
+            border-radius: 5px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            white-space: nowrap;
+        }
+        .btn-obs-save:hover { background: var(--primary-hover); }
+
+        /* Corpo: lista + painel deslizante */
+        .notas-body {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 12px 12px;
+        }
+
+        /* Lista de notas - ocupa todo o espaço disponível */
+        .notas-list-wrap {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Cabeçalho da lista */
+        .list-thead {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
+            min-width: 1000px;
+            padding: 0.8rem 1.2rem;
+            background: rgba(0,0,0,0.2);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .nota-row {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
+            min-width: 1000px;
+            align-items: center;
+            padding: 0.75rem 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: background 0.15s;
+            gap: 1rem;
+        }
+        .nota-row:hover { background: rgba(255,255,255,0.04); }
+        .nota-row.active { background: rgba(59,130,246,0.1); border-left: 3px solid var(--primary); padding-left: calc(1.2rem - 3px); }
+
+        .nota-col { font-size: 0.82rem; }
+        .nota-col-label { font-weight: 700; font-size: 0.88rem; display: flex; flex-direction: column; gap: 0.15rem; }
+        .nota-col-label small { font-size: 0.72rem; color: var(--text-muted); font-weight: 400; }
+        .nota-col-date { text-align: left; }
+        .nota-col-atraso { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-align: center; }
+        .nota-col-currency { font-family: monospace; font-size: 0.88rem; text-align: right; }
+        .nota-col-status { text-align: right; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+
+        .detail-panel {
+            width: 0;
+            overflow: hidden;
+            border-left: 0px solid var(--border-color);
+            background: #0d1829;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                        border-width 0.35s;
+            flex-shrink: 0;
+        }
+
+        .detail-panel.open {
+            width: 45%;
+            border-left-width: 1px;
+        }
+
+        .detail-panel-inner {
+            width: 100%;
+            min-width: 480px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .detail-panel-header {
+            padding: 0.9rem 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-shrink: 0;
+            background: var(--surface-color);
+        }
+
+        .detail-panel-header h3 { font-size: 1rem; font-weight: 700; }
+        .detail-panel-header .detail-sub { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.2rem; }
+
+        .close-detail-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 0.2rem;
+            line-height: 1;
+            transition: color 0.2s;
+            flex-shrink: 0;
+        }
+        .close-detail-btn:hover { color: white; }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            overflow: hidden;
+            background: #090f1a;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            background: #090f1a;
+        }
+
+        .timeline-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem; /* Diminuindo espaçamento */
+            border-left: 2px solid var(--border-color); /* Linha inquebrável atrelada ao container */
+            padding-left: 1.5rem;
+            margin-left: 0.5rem; /* Margem esquerda para acomodar a bolinha que sai do limite interno */
+            position: relative;
+        }
+
+        .timeline-event {
+            background: transparent;
+            border: none;
+            padding: 0;
+            width: 100%;
+            position: relative;
+            z-index: 1;
+        }
+
+        .timeline-event::before {
+            content: '';
+            position: absolute;
+            left: calc(-1.5rem - 6px); /* 1.5rem de padding-left - 1px pro centro do border - 5px do raio da bolinha */
+            top: 0.35rem; /* Alinhado ao topo do título */
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 3px #090f1a; /* Efeito de recorte super premium ao redor da bolinha em cima da linha */
+            z-index: 2;
+        }
+
+        .chat-meta {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            margin-bottom: 0.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .btn-sync {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #f8fafc;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+        }
+
+        .btn-sync:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+        }
+
+        .btn-sync i {
+            font-size: 1rem;
+            transition: transform 0.5s;
+        }
+
+        .btn-sync.loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        .notification-popup {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            width: 280px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--success);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .chat-action-inline {
+            font-weight: 700;
+            color: #60a5fa;
+            font-size: 0.75rem;
+            margin-left: 0.2rem;
+        }
+
+        .chat-body {
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            line-height: 1.4;
+        }
+
+        .chat-input-area {
+            background: var(--surface-color);
+            border-top: 1px solid var(--border-color);
+            padding: 1rem 1.5rem;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+
+        .chat-controls-row {
+            display: flex;
+            gap: 0.8rem;
+        }
+        
+        .chat-controls-row > div {
+            flex: 1;
+        }
+        
+        .chat-textarea-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .chat-textarea-wrapper textarea {
+            flex: 1;
+            border-radius: 20px;
+            padding: 0.8rem 3.5rem 0.8rem 1.2rem;
+            resize: none;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            color: white;
+            font-size: 0.9rem;
+            width: 100%;
+        }
+
+        .chat-textarea-wrapper textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .chat-send-btn {
+            position: absolute;
+            right: 8px;
+            bottom: 8px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .chat-send-btn:hover:not(:disabled) { background: var(--primary-hover); transform: scale(1.05); }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* Formularios */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: white;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .btn-submit {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .btn-submit:hover {
+            background: var(--primary-hover);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .loader {
+            border: 3px solid var(--border-color);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <div class="header-left">
+            <div class="brand">
+                <i class="ph-fill ph-wallet"></i>
+                Zeus Cobranças
+            </div>
+            <nav class="top-nav">
+                <a href="javascript:void(0)" class="nav-link" id="nav-dash" onclick="showView('dash')">Dashboard</a>
+                <a href="javascript:void(0)" class="nav-link active" id="nav-clientes" onclick="showView('clientes')">Contas a Receber</a>
+                <a href="javascript:void(0)" class="nav-link" id="nav-recebidas" onclick="showView('recebidas')">Contas Recebidas</a>
+            </nav>
+        </div>
+        <div class="header-right">
+            <div style="display:flex; align-items:center; gap:1.5rem;">
+                <div id="sync-container" style="display:flex; align-items:center; gap:0.8rem; font-size:0.8rem; color:var(--text-muted);">
+                    <span id="last-sync-time">Última atualização: --/-- --:--</span>
+                    <button class="btn-sync" onclick="syncSAP()" id="btn-sync-sap">
+                        <i class="ph ph-arrows-clockwise"></i> Atualizar SAP
+                    </button>
+                </div>
+                <div style="font-size: 0.9rem; color: #f8fafc; display:flex; align-items:center; gap:0.5rem; position:relative;">
+                    <i class="ph-fill ph-user-circle" style="font-size:1.5rem; color:var(--primary);"></i>
+                    <b>Financeiro</b>
+                    <div id="notification-badge" style="display:none; position:absolute; top:-5px; left:-5px; width:10px; height:10px; background:var(--danger); border-radius:50%; border:2px solid var(--bg-dark);"></div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Popup de Notificação de Pagamento -->
+    <div id="payment-notification" class="notification-popup">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.5rem;">
+            <div style="display:flex; align-items:center; gap:0.5rem; color:var(--success);">
+                <i class="ph-fill ph-check-circle" style="font-size:1.2rem;"></i>
+                <b style="font-size:0.85rem;">Novo Pagamento!</b>
+            </div>
+            <button onclick="closeNotification()" style="background:none; border:none; color:var(--text-muted); cursor:pointer;"><i class="ph ph-x"></i></button>
+        </div>
+        <div id="notification-content" style="font-size:0.8rem; line-height:1.4;">
+            Identificamos um novo pagamento recebido no SAP.
+        </div>
+    </div>
+
+    <main id="main-content">
+        <!-- View 0: Dashboard -->
+        <div id="dash-view" style="display:none; animation: fadeIn 0.4s;">
+            <h1>Visão Geral</h1>
+            
+            <div style="display:flex; gap:1.5rem; margin-bottom:2rem;">
+                <div class="summary-card" style="flex:1;">
+                    <div class="stat-label" style="font-weight:600;">Total Global Ativo</div>
+                    <div class="stat-value" id="dash-total" style="color: #cbd5e1; font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+                </div>
+                <div class="summary-card atrasado" style="flex:1;">
+                    <div class="stat-label" style="font-weight:600;">Total em Atraso</div>
+                    <div class="stat-value" id="dash-atrasado" style="color: var(--danger); font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+                </div>
+                <div class="summary-card no-prazo" style="flex:1;">
+                    <div class="stat-label" style="font-weight:600;">Total no Prazo</div>
+                    <div class="stat-value" id="dash-prazo" style="color: var(--success); font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1.5rem;">
+                <div class="card" style="display:flex; flex-direction:column; align-items:center;">
+                    <h3 style="font-size:0.95rem; margin-bottom:1rem; color:var(--text-muted); align-self:flex-start;">Status da Carteira</h3>
+                    <div style="width:250px; height:250px; position:relative;">
+                        <canvas id="chartStatus"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <h3 style="font-size:0.95rem; margin-bottom:1rem; color:var(--text-muted);">Top 5 Clientes - Maior Risco (Atraso)</h3>
+                    <div style="height:250px; position:relative; width:100%;">
+                        <canvas id="chartTopClientes"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- View 1: Clientes (Grid) -->
+        <div id="clientes-view">
+            <h1 id="main-title">Posição de Contas a Receber</h1>
+
+            <div class="summary-container" id="summary-container">
+                <div class="summary-card atrasado">
+                    <div class="stat-label" id="label-sum-atrasado">Total Atrasado</div>
+                    <div class="stat-value" id="sum-atrasado" style="color: var(--danger);">R$ 0,00</div>
+                </div>
+                <div class="summary-card no-prazo">
+                    <div class="stat-label" id="label-sum-prazo">Total No Prazo</div>
+                    <div class="stat-value" id="sum-no-prazo" style="color: var(--success);">R$ 0,00</div>
+                </div>
+                <div class="summary-card total">
+                    <div class="stat-label" id="label-sum-total">Saldo Total Geral</div>
+                    <div class="stat-value" id="sum-total">R$ 0,00</div>
+                </div>
+            </div>
+
+            <div class="filters-container">
+                <div class="form-group">
+                    <label>Situação do Pgto</label>
+                    <select id="filter-status" class="form-control" onchange="loadClientes()">
+                        <option value="">Todas as Notas</option>
+                        <option value="no_prazo">No Prazo (Hoje ou Futuro)</option>
+                        <option value="atrasado">Atrasadas (Geral)</option>
+                        <option value="atrasado_30">Atrasadas (Até 30 dias)</option>
+                        <option value="atrasado_maior_30">Atrasadas (Mais de 30 dias)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label id="label-filter-venc">Período de Venc.</label>
+                    <select id="filter-vencimento-tipo" class="form-control" onchange="toggleDateRangeInputs(); loadClientes();">
+                        <option value="">Todo o Período</option>
+                        <option value="semana_passada">Semana Passada</option>
+                        <option value="esta_semana">Esta Semana</option>
+                        <option value="proxima_semana">Próxima Semana</option>
+                        <option value="mes_passado">Mês Passado</option>
+                        <option value="este_mes">Este Mês</option>
+                        <option value="proximo_mes">Próximo Mês</option>
+                        <option value="ano_passado">Ano Passado</option>
+                        <option value="este_ano">Este Ano</option>
+                        <option value="proximo_ano">Próximo Ano</option>
+                        <option value="periodo">Período Específico</option>
+                    </select>
+                </div>
+                <div id="date-range-container" style="display: none; gap: 0.5rem; flex: 2; min-width: 300px;">
+                    <div class="form-group">
+                        <label>De (Venc.)</label>
+                        <input type="date" id="filter-vencimento-inicio" class="form-control" onchange="loadClientes()">
+                    </div>
+                    <div class="form-group">
+                        <label>Até (Venc.)</label>
+                        <input type="date" id="filter-vencimento-fim" class="form-control" onchange="loadClientes()">
+                    </div>
+                </div>
+
+                <!-- Filtro de Pagamento (Aparece apenas no Contas Recebidas) -->
+                <div class="form-group" id="group-filter-pagamento" style="display: none;">
+                    <label>Período de Pagto.</label>
+                    <select id="filter-pagamento-tipo" class="form-control" onchange="toggleDateRangePagamento(); loadClientes();">
+                        <option value="">Todo o Período</option>
+                        <option value="semana_passada">Semana Passada</option>
+                        <option value="esta_semana">Esta Semana</option>
+                        <option value="mes_passado">Mês Passado</option>
+                        <option value="este_mes">Este Mês</option>
+                        <option value="ano_passado">Ano Passado</option>
+                        <option value="este_ano">Este Ano</option>
+                        <option value="periodo">Período Específico</option>
+                    </select>
+                </div>
+                <div id="date-range-pagamento-container" style="display: none; gap: 0.5rem; flex: 2; min-width: 300px;">
+                    <div class="form-group">
+                        <label>De (Pagto.)</label>
+                        <input type="date" id="filter-pagamento-inicio" class="form-control" onchange="loadClientes()">
+                    </div>
+                    <div class="form-group">
+                        <label>Até (Pagto.)</label>
+                        <input type="date" id="filter-pagamento-fim" class="form-control" onchange="loadClientes()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Cliente (Nome ou Cód)</label>
+                    <input type="text" id="filter-cliente" class="form-control" placeholder="Ex: Algar">
+                </div>
+                <div class="form-group">
+                    <label>Responsável</label>
+                    <input type="text" id="filter-responsavel" class="form-control" placeholder="Ex: João">
+                </div>
+                <div class="form-group">
+                    <label>Ordenar Por</label>
+                    <select id="filter-ordenacao" class="form-control" onchange="loadClientes()">
+                        <option value="maior_saldo">Maior Saldo Global</option>
+                        <option value="menor_saldo">Menor Saldo Global</option>
+                        <option value="maior_atraso">Maior Saldo Atrasado</option>
+                        <option value="vencimento_antigo">Vencimento Mais Antigo</option>
+                        <option value="vencimento_novo">Vencimento Mais Recente</option>
+                        <option value="nome_az">Nome do Cliente (A-Z)</option>
+                        <option value="responsavel">Responsável (A-Z)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="filter-stats"
+                style="margin-bottom: 1.5rem; font-size: 0.85rem; color: var(--text-muted); display: flex; align-items: center; gap: 0.5rem;">
+                <div class="loader" style="width:14px; height:14px; border-width:2px; margin:0;"></div> Carregando
+                métricas...
+            </div>
+
+            <div id="clientes-grid" class="grid">
+                <div class="loader"></div>
+            </div>
+        </div>
+
+        <!-- View 2: Notas do Cliente -->
+        <div id="notas-view">
+
+            <!-- TOPO FIXO -->
+            <div class="notas-top">
+                <!-- Header: voltar + nome + chips de resumo -->
+                <div class="notas-header">
+                    <button class="back-btn" onclick="showView(currentViewMode === 'recebidas' ? 'recebidas' : 'clientes')">
+                        <i class="ph ph-arrow-left"></i>
+                    </button>
+                    <div>
+                        <div style="font-weight:700; font-size:1.05rem;" id="cliente-nome-title">Nome do Cliente</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted);" id="cliente-code-subtitle">Código</div>
+                    </div>
+                    <div class="summary-chips">
+                        <span class="summary-chip">Atrasado: <b id="cli-sum-atrasado" style="color:var(--danger);">--</b></span>
+                        <span style="color:var(--border-color)">|</span>
+                        <span class="summary-chip">No Prazo: <b id="cli-sum-prazo" style="color:var(--success);">--</b></span>
+                        <span style="color:var(--border-color)">|</span>
+                        <span class="summary-chip">Total: <b id="cli-sum-total">--</b></span>
+                        <span style="color:var(--border-color)">|</span>
+                        <span class="summary-chip" id="cli-sum-data-antiga" style="color:var(--text-muted);"></span>
+                        <span class="summary-chip" id="cli-sum-responsavel" style="color:var(--text-muted);"></span>
+                    </div>
+                </div>
+                <!-- Obs gerais na barra de topo -->
+                <div class="obs-top-bar">
+                    <span style="font-size:0.72rem; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; white-space:nowrap; padding-top:0.5rem;">
+                        <i class="ph ph-note-pencil" style="vertical-align:middle;"></i> Obs. do Cliente
+                    </span>
+                    <textarea id="obs-geral-textarea" class="form-control" rows="1"
+                        placeholder="Anote informações gerais sobre o cliente..."></textarea>
+                    <div class="obs-top-right">
+                        <button class="btn-obs-save" onclick="salvarObservacaoCliente()">
+                            <i class="ph ph-floppy-disk"></i> Salvar
+                        </button>
+                        <span class="obs-meta-top" id="obs-geral-meta"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CORPO: lista + painel deslizante -->
+            <div class="notas-body">
+
+                <!-- Lista de notas (full-width por padrão) -->
+                <div class="notas-list-wrap" id="notas-list-wrap">
+                    <div class="list-thead">
+                        <span>Documento</span>
+                        <span>Emissão</span>
+                        <span>Vencimento</span>
+                        <span>Conta Razão</span>
+                        <span>Banco</span>
+                        <span id="th-promessa-pagamento">Promessa</span>
+                        <span style="text-align:center">Atraso</span>
+                        <span style="text-align:right">Valor NF-e</span>
+                        <span style="text-align:right">Saldo</span>
+                        <span style="text-align:right">Status</span>
+                    </div>
+                    <div id="notas-list">
+                        <div class="loader" style="margin:2rem auto;"></div>
+                    </div>
+                </div>
+
+                <!-- Painel de detalhes (deslizante) -->
+                <div class="detail-panel" id="detail-panel">
+                    <div class="detail-panel-inner">
+                        <div class="detail-panel-header">
+                            <div>
+                                <h3 id="detail-nfse-title">—</h3>
+                                <div class="detail-sub" id="detail-nfse-sub">—</div>
+                            </div>
+                            <button class="close-detail-btn" onclick="closeDetail()">
+                                <i class="ph ph-x"></i>
+                            </button>
+                        </div>
+                        <div class="chat-container">
+                            <div class="chat-history">
+                                <div class="timeline-wrapper" id="timeline-container">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <form id="historico-form" class="chat-input-area" onsubmit="event.preventDefault(); submitAcao();">
+                                <div class="chat-controls-row">
+                                    <div>
+                                        <select id="ipt-acao" class="form-control" style="font-size:0.85rem; padding:0.6rem;" required>
+                                            <option value="" disabled selected>Ação Tomada...</option>
+                                            <option value="Contato por Telefone">📞 Contato Telefônico</option>
+                                            <option value="Envio de E-mail">📧 E-mail</option>
+                                            <option value="Mensagem via WhatsApp">💬 WhatsApp</option>
+                                            <option value="Promessa de Pagamento">✅ Promessa de Pagt.</option>
+                                            <option value="Sem Resposta">🔇 Sem Resposta</option>
+                                            <option value="Pagamento Confirmado">💰 Pagt. Confirmado</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <input type="text" id="ipt-responsavel" class="form-control" style="font-size:0.85rem; padding:0.6rem;" required placeholder="Responsável">
+                                    </div>
+                                </div>
+                                <div id="group-data-promessa" style="display:none; margin-top:-0.3rem;">
+                                    <label style="font-size:0.75rem; display:block; margin-bottom:0.2rem; color:var(--text-muted);">Data da Promessa</label>
+                                    <input type="date" id="ipt-data-promessa" class="form-control" style="font-size:0.85rem; padding:0.6rem;">
+                                </div>
+                                <div class="chat-textarea-wrapper">
+                                    <textarea id="ipt-obs" rows="2" required placeholder="Digite sua observação sobre a negociação..."></textarea>
+                                    <button type="submit" class="chat-send-btn" id="btn-add-historico" title="Salvar Tratativa">
+                                        <i class="ph ph-paper-plane-right"></i>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '/api';
+        let currentDocEntry = null;
+        let currentCardCode = null;
+
+        const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+        function daysPastDue(dateString, endDateString = null) {
+            if (!dateString) return 0;
+            const [year, month, day] = dateString.split('T')[0].split('-');
+            const due = new Date(year, month - 1, day);
+            
+            let end;
+            if (endDateString) {
+                const [y2, m2, d2] = endDateString.split('T')[0].split('-');
+                end = new Date(y2, m2 - 1, d2);
+            } else {
+                end = new Date();
+                end.setHours(0, 0, 0, 0);
+            }
+            return Math.max(0, Math.floor((end - due) / 86400000));
+        }
+
+        let globalTotalClientes = 0;
+
+        let searchTimeout;
+        document.addEventListener('DOMContentLoaded', () => {
+            document.querySelectorAll('.filters-container input, .filters-container select').forEach(el => {
+                if (el.tagName === 'SELECT' || el.type === 'date') {
+                    el.addEventListener('change', () => loadClientes());
+                } else if (el.type === 'text') {
+                    el.addEventListener('input', () => {
+                        clearTimeout(searchTimeout);
+                        searchTimeout = setTimeout(() => loadClientes(), 400);
+                    });
+                }
+            });
+            document.getElementById('ipt-acao').addEventListener('change', function () {
+                document.getElementById('group-data-promessa').style.display =
+                    this.value === 'Promessa de Pagamento' ? 'block' : 'none';
+            });
+
+            fetch(`${API_BASE}/clientes`).then(r => r.json()).then(data => {
+                globalTotalClientes = data.length;
+                
+                // Routing inicial: verifica se há "?cliente=CODE" na URL
+                const params = new URLSearchParams(window.location.search);
+                const cliParam = params.get('cliente');
+                const viewParam = params.get('view');
+                
+                if (cliParam) {
+                    const isPago = viewParam === 'recebidas';
+                    if (isPago) currentViewMode = 'recebidas';
+                    loadNotasCliente(cliParam, cliParam, null, false, isPago);
+                } else if (viewParam === 'dash') {
+                    showView('dash');
+                } else if (viewParam === 'recebidas') {
+                    showView('recebidas');
+                } else {
+                    loadClientes();
+                }
+            });
+            updateSyncStatus();
+        });
+
+        async function updateSyncStatus() {
+            try {
+                const res = await fetch(`${API_BASE}/sync/status`);
+                const data = await res.json();
+                if (data.last_sync) {
+                    const dt = new Date(data.last_sync).toLocaleString('pt-BR');
+                    document.getElementById('last-sync-time').innerText = `Última atualização: ${dt}`;
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        async function syncSAP() {
+            const btn = document.getElementById('btn-sync-sap');
+            btn.classList.add('loading');
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/sync`, { method: 'POST' });
+                const data = await res.json();
+                if (data.pagamentos_novos > 0) {
+                    showNotification(`Identificamos <b>${data.pagamentos_novos}</b> novo(s) pagamento(s) no SAP e as contas já foram baixadas localmente.`);
+                }
+                await updateSyncStatus();
+                if (currentViewMode === 'clientes' || currentViewMode === 'recebidas') loadClientes();
+            } catch (e) {
+                console.error(e);
+                alert('Erro ao sincronizar com SAP');
+            } finally {
+                btn.classList.remove('loading');
+                btn.disabled = false;
+            }
+        }
+
+        function showNotification(text) {
+            document.getElementById('notification-content').innerHTML = text;
+            document.getElementById('payment-notification').style.display = 'block';
+            document.getElementById('notification-badge').style.display = 'block';
+        }
+
+        function closeNotification() {
+            document.getElementById('payment-notification').style.display = 'none';
+            document.getElementById('notification-badge').style.display = 'none';
+        }
+
+        // Habilita voltar / avançar navegando nativamente pelo browser
+        window.addEventListener('popstate', () => {
+            const params = new URLSearchParams(window.location.search);
+            const cliParam = params.get('cliente');
+            const viewParam = params.get('view');
+            if (cliParam) {
+                const isPago = viewParam === 'recebidas';
+                loadNotasCliente(cliParam, cliParam, null, true, isPago);
+            } else if (viewParam === 'dash') {
+                showView('dash', true);
+            } else if (viewParam === 'recebidas') {
+                showView('recebidas', true);
+            } else {
+                showView('clientes', true);
+            }
+        });
+
+        let currentViewMode = 'receber'; // 'receber' or 'recebidas'
+
+        function showView(view, isPopState = false) {
+            const isRecebidas = view === 'recebidas';
+            if (view === 'recebidas' || view === 'clientes') {
+                currentViewMode = isRecebidas ? 'recebidas' : 'receber';
+            }
+
+            document.getElementById('clientes-view').style.display = (view === 'clientes' || view === 'recebidas') ? 'block' : 'none';
+            document.getElementById('notas-view').style.display = view === 'notas' ? 'flex' : 'none';
+            document.getElementById('dash-view').style.display = view === 'dash' ? 'block' : 'none';
+            
+            const titleElem = document.getElementById('main-title');
+            if (titleElem) {
+                titleElem.innerText = currentViewMode === 'recebidas' ? 'Posição de Contas Recebidas' : 'Posição de Contas a Receber';
+            }
+
+            const isRec = currentViewMode === 'recebidas';
+            document.getElementById('label-sum-atrasado').innerText = isRec ? 'Pago com Atraso' : 'Total Atrasado';
+            document.getElementById('label-sum-prazo').innerText = isRec ? 'Pago no Prazo' : 'Total No Prazo';
+            document.getElementById('label-sum-total').innerText = isRec ? 'Total Recebido' : 'Saldo Total Geral';
+
+            // Mostrar/Ocultar filtro de pagamento conforme a visão
+            document.getElementById('group-filter-pagamento').style.display = isRec ? 'block' : 'none';
+            if (!isRec) document.getElementById('date-range-pagamento-container').style.display = 'none';
+            else toggleDateRangePagamento(); 
+
+            // Navegacao
+            document.getElementById('nav-clientes').classList.toggle('active', view === 'clientes');
+            document.getElementById('nav-dash').classList.toggle('active', view === 'dash');
+            document.getElementById('nav-recebidas').classList.toggle('active', view === 'recebidas');
+
+            if (view === 'clientes' || view === 'dash' || view === 'recebidas') closeDetail();
+            
+            if (!isPopState) {
+                if (view === 'dash') window.history.pushState({}, '', '?view=dash');
+                else if (view === 'recebidas') window.history.pushState({}, '', '?view=recebidas');
+                else if (view === 'clientes') window.history.pushState({}, '', window.location.pathname);
+            }
+
+            if (view === 'dash') renderDashboard();
+            if (view === 'clientes' || view === 'recebidas') loadClientes();
+        }
+
+        function toggleDateRangeInputs() {
+            const tipo = document.getElementById('filter-vencimento-tipo').value;
+            document.getElementById('date-range-container').style.display = tipo === 'periodo' ? 'flex' : 'none';
+        }
+
+        function toggleDateRangePagamento() {
+            const tipo = document.getElementById('filter-pagamento-tipo').value;
+            document.getElementById('date-range-pagamento-container').style.display = tipo === 'periodo' ? 'flex' : 'none';
+        }
+
+        let chart1, chart2;
+        let globalDataCache = [];
+
+        async function renderDashboard() {
+            if (globalDataCache.length === 0) return; // Aguarda dados
+
+            const data = globalDataCache;
+            let totalA = 0, totalP = 0, total = 0;
+            
+            // Top 5 atrasados
+            const sortedByAtraso = [...data].sort((a,b) => parseFloat(b.saldo_atrasado || 0) - parseFloat(a.saldo_atrasado || 0)).slice(0, 5);
+
+            data.forEach(c => {
+                totalA += parseFloat(c.saldo_atrasado || 0);
+                totalP += parseFloat(c.saldo_no_prazo || 0);
+                total += parseFloat(c.saldo_total || 0);
+            });
+
+            document.getElementById('dash-total').innerText = formatter.format(total);
+            document.getElementById('dash-atrasado').innerText = formatter.format(totalA);
+            document.getElementById('dash-prazo').innerText = formatter.format(totalP);
+
+            // Chart 1: Status Donut
+            if(chart1) chart1.destroy();
+            const ctx1 = document.getElementById('chartStatus').getContext('2d');
+            chart1 = new Chart(ctx1, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Atrasado', 'No Prazo'],
+                    datasets: [{
+                        data: [totalA, totalP],
+                        backgroundColor: ['#ef4444', '#10b981'],
+                        borderWidth: 0,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1' } } }, cutout: '70%'}
+            });
+
+            // Chart 2: Bar Top Clientes
+            if(chart2) chart2.destroy();
+            const ctx2 = document.getElementById('chartTopClientes').getContext('2d');
+            chart2 = new Chart(ctx2, {
+                type: 'bar',
+                data: {
+                    labels: sortedByAtraso.map(c => c.card_name.length > 15 ? c.card_name.substring(0,15)+'...' : c.card_name),
+                    datasets: [{
+                        label: 'Valor em Atraso (R$)',
+                        data: sortedByAtraso.map(c => c.saldo_atrasado),
+                        backgroundColor: '#ef4444',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        y: { ticks: { color: '#94a3b8', callback: v => 'R$ '+v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.05)' } },
+                        x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
+                    },
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+
+        async function loadClientes() {
+            try {
+                const qs = new URLSearchParams();
+                const status = document.getElementById('filter-status').value;
+                const vencimentoTipo = document.getElementById('filter-vencimento-tipo').value;
+                const vencimentoInicio = document.getElementById('filter-vencimento-inicio').value;
+                const vencimentoFim = document.getElementById('filter-vencimento-fim').value;
+                const pagamentoTipo = document.getElementById('filter-pagamento-tipo').value;
+                const pagamentoInicio = document.getElementById('filter-pagamento-inicio').value;
+                const pagamentoFim = document.getElementById('filter-pagamento-fim').value;
+                const cliente = document.getElementById('filter-cliente').value;
+                const responsavel = document.getElementById('filter-responsavel').value;
+                const ordenacao = document.getElementById('filter-ordenacao').value;
+
+                if (status) qs.append('status', status);
+                if (vencimentoTipo) qs.append('vencimento', vencimentoTipo);
+                if (vencimentoInicio) qs.append('vencimento_inicio', vencimentoInicio);
+                if (vencimentoFim) qs.append('vencimento_fim', vencimentoFim);
+                if (pagamentoTipo) qs.append('pagamento', pagamentoTipo);
+                if (pagamentoInicio) qs.append('pagamento_inicio', pagamentoInicio);
+                if (pagamentoFim) qs.append('pagamento_fim', pagamentoFim);
+                if (cliente) qs.append('cliente', cliente);
+                if (responsavel) qs.append('responsavel', responsavel);
+                if (ordenacao) qs.append('ordenacao', ordenacao);
+
+                const isPago = currentViewMode === 'recebidas';
+                qs.append('pago', isPago);
+
+                const res = await fetch(`${API_BASE}/clientes?${qs.toString()}`);
+                const data = await res.json();
+                const grid = document.getElementById('clientes-grid');
+                grid.innerHTML = '';
+
+                let totalAtrasado = 0, totalNoPrazo = 0, totalGeral = 0;
+                data.forEach(cli => {
+                    totalAtrasado += parseFloat(cli.saldo_atrasado || 0);
+                    totalNoPrazo += parseFloat(cli.saldo_no_prazo || 0);
+                    totalGeral += parseFloat(cli.saldo_total || 0);
+
+                    let badgeClass = 'badge';
+                    let badgeText = 'No Prazo';
+                    if (isPago) {
+                        badgeText = 'Liq. Total';
+                    } else {
+                        const diffDays = daysPastDue(cli.vencimento_mais_antigo);
+                        if (diffDays > 30) { badgeClass += ' danger'; badgeText = `Atrasado > 30 dias`; }
+                        else if (diffDays > 0) { badgeClass += ' warning'; badgeText = `Atrasado ${diffDays} dias`; }
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.onclick = () => loadNotasCliente(cli.card_code, cli.card_name);
+                    const responsaveisStr = cli.responsaveis || '--';
+                    const dtAtrasado = cli.vencimento_atrasado_mais_antigo
+                        ? new Date(cli.vencimento_atrasado_mais_antigo).toLocaleDateString('pt-BR', { timeZone: 'UTC' })
+                        : '--';
+                    
+                    const valorLabel = isPago ? 'Total Recebido' : 'Total em Aberto';
+                    const atrasadoLabel = isPago ? 'Pago com Atraso' : 'Atrasado';
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">${cli.card_name || 'Sem nome'}</div>
+                                <div class="card-subtitle">${cli.card_code}</div>
+                            </div>
+                            <span class="${badgeClass}">${badgeText}</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:1rem; display:flex; justify-content:space-between;">
+                            <span><i class="ph ph-user"></i> Resp: <span style="color:#cbd5e1">${responsaveisStr}</span></span>
+                            ${cli.data_promessa_mais_proxima && !isPago ? `<span style="color:var(--warning); font-weight:600;"><i class="ph ph-calendar"></i> Promessa: ${new Date(cli.data_promessa_mais_proxima).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</span>` : ''}
+                        </div>
+                        <div class="stat-row">
+                            <div style="flex:1;">
+                                <div class="stat-label">${atrasadoLabel}</div>
+                                <div class="stat-value" style="color:#ef4444; font-size:1.1rem;">${formatter.format(cli.saldo_atrasado)}</div>
+                                <div style="font-size:0.75rem; color:#f87171; margin-top:0.2rem;">Desde: ${dtAtrasado}</div>
+                            </div>
+                            <div style="flex:1; text-align:right;">
+                                <div class="stat-label">No Prazo</div>
+                                <div class="stat-value" style="color:#10b981; font-size:1.1rem;">${formatter.format(cli.saldo_no_prazo)}</div>
+                            </div>
+                        </div>
+                        <div class="stat-row" style="margin-top:0.8rem; padding-top:0.5rem; border-top:1px solid var(--border-color); justify-content:space-between; align-items:center;">
+                            <div style="font-size:0.8rem; color:#cbd5e1;">${cli.qtd_notas} nota(s)</div>
+                            <div style="font-size:1rem; font-weight:700;">${valorLabel}: ${formatter.format(cli.saldo_total)}</div>
+                        </div>`;
+                    grid.appendChild(card);
+                });
+
+                
+                // Atualiza o total global se não houver filtros (para o contador "X de Y" fazer sentido no modo atual)
+                const hasFilters = status || vencimentoTipo || vencimentoInicio || vencimentoFim || pagamentoTipo || pagamentoInicio || pagamentoFim || cliente || responsavel;
+                if (!hasFilters) {
+                    globalTotalClientes = data.length;
+                    globalDataCache = data;
+                    if (document.getElementById('dash-view').style.display === 'block') renderDashboard();
+                }
+
+                if (data.length === 0) grid.innerHTML = '<p style="color:var(--text-muted); padding: 2rem; text-align: center; width: 100%;">Nenhum cliente encontrado com este filtro.</p>';
+                document.getElementById('sum-atrasado').innerText = formatter.format(totalAtrasado);
+                document.getElementById('sum-no-prazo').innerText = formatter.format(totalNoPrazo);
+                document.getElementById('sum-total').innerText = formatter.format(totalGeral);
+                
+                const labelStat = isPago ? 'valores recebidos' : 'valores a receber';
+                const totalLabel = hasFilters ? ` encontrados` : ` totais`;
+                document.getElementById('filter-stats').innerHTML = `<i class="ph ph-funnel"></i> Exibindo <b>${data.length}</b> cliente(s)${totalLabel} com ${labelStat}.`;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('clientes-grid').innerHTML = '<span style="color:#ef4444">Erro ao carregar dados.</span>';
+            }
+        }
+
+        async function loadNotasCliente(cardCode, cardName, keepOpenDocEntry = null, isPopState = false, pago = null) {
+            currentCardCode = cardCode;
+            const isPago = pago !== null ? pago : (currentViewMode === 'recebidas');
+            document.getElementById('cliente-nome-title').innerText = cardName;
+            document.getElementById('cliente-code-subtitle').innerText = cardCode;
+            showView('notas', isPopState);
+
+            const thPromessa = document.getElementById('th-promessa-pagamento');
+            if (thPromessa) {
+                thPromessa.innerText = isPago ? 'Pagamento' : 'Promessa';
+            }
+            
+            if (!isPopState) {
+                const view = isPago ? 'recebidas' : 'receber';
+                window.history.pushState({ cliente: cardCode }, '', `?cliente=${cardCode}&view=${view}`);
+            }
+
+            if (!keepOpenDocEntry) {
+                currentDocEntry = null;
+                document.getElementById('detail-panel').classList.remove('open');
+            }
+
+            // Captura filtros ativos para manter o drill-down coerente com o período selecionado
+            const vencimentoTipo = document.getElementById('filter-vencimento-tipo').value;
+            const vencimentoInicio = document.getElementById('filter-vencimento-inicio').value;
+            const vencimentoFim = document.getElementById('filter-vencimento-fim').value;
+            const pagamentoTipo = document.getElementById('filter-pagamento-tipo').value;
+            const pagamentoInicio = document.getElementById('filter-pagamento-inicio').value;
+            const pagamentoFim = document.getElementById('filter-pagamento-fim').value;
+
+            const qs = new URLSearchParams();
+            qs.append('pago', isPago);
+            if (vencimentoTipo) qs.append('vencimento', vencimentoTipo);
+            if (vencimentoInicio) qs.append('vencimento_inicio', vencimentoInicio);
+            if (vencimentoFim) qs.append('vencimento_fim', vencimentoFim);
+            if (pagamentoTipo) qs.append('pagamento', pagamentoTipo);
+            if (pagamentoInicio) qs.append('pagamento_inicio', pagamentoInicio);
+            if (pagamentoFim) qs.append('pagamento_fim', pagamentoFim);
+
+            // Resumo
+            try {
+                const res = await fetch(`${API_BASE}/clientes/${cardCode}/resumo?${qs.toString()}`);
+                const data = await res.json();
+                const r = data.resumo || {};
+                const obs = data.observacao_geral;
+                const fmt = v => formatter.format(v || 0);
+
+                document.getElementById('cli-sum-atrasado').innerText = fmt(r.saldo_atrasado);
+                document.getElementById('cli-sum-atrasado2') && (document.getElementById('cli-sum-atrasado2').innerText = fmt(r.saldo_atrasado));
+                document.getElementById('cli-sum-atrasado-qtd') && (document.getElementById('cli-sum-atrasado-qtd').innerText = `${r.qtd_atrasadas || 0} atrasada(s)`);
+                document.getElementById('cli-sum-prazo').innerText = fmt(r.saldo_no_prazo);
+                document.getElementById('cli-sum-prazo2') && (document.getElementById('cli-sum-prazo2').innerText = fmt(r.saldo_no_prazo));
+                document.getElementById('cli-sum-prazo-qtd') && (document.getElementById('cli-sum-prazo-qtd').innerText = `${r.qtd_no_prazo || 0} no prazo`);
+                document.getElementById('cli-sum-total').innerText = fmt(r.saldo_total);
+                document.getElementById('cli-sum-total2') && (document.getElementById('cli-sum-total2').innerText = fmt(r.saldo_total));
+                
+                // Se foi carregado via link com o nome provisório = card_code, ajusta o título real
+                if (r.card_name && document.getElementById('cliente-nome-title').innerText === cardCode) {
+                    document.getElementById('cliente-nome-title').innerText = r.card_name;
+                }
+
+                const elResp = document.getElementById('cli-sum-responsavel');
+                elResp.innerText = r.responsaveis ? `Resp: ${r.responsaveis}` : '';
+
+                const elAnt = document.getElementById('cli-sum-data-antiga');
+                if (r.venc_atrasado_mais_antigo) {
+                    elAnt.innerText = `Venc. mais antigo: ${new Date(r.venc_atrasado_mais_antigo).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
+                    elAnt.style.color = 'var(--danger)';
+                } else {
+                    elAnt.innerText = '✓ Sem atrasos';
+                    elAnt.style.color = 'var(--success)';
+                }
+
+                document.getElementById('obs-geral-textarea').value = obs ? (obs.observacao || '') : '';
+                if (obs && obs.atualizado_por) {
+                    const dt = new Date(obs.atualizado_em).toLocaleString('pt-BR');
+                    document.getElementById('obs-geral-meta').innerText = `Salvo por ${obs.atualizado_por} em ${dt}`;
+                } else {
+                    document.getElementById('obs-geral-meta').innerText = '';
+                }
+            } catch (e) { console.error('Resumo error', e); }
+
+            // Lista de notas
+            const list = document.getElementById('notas-list');
+            list.innerHTML = '<div class="loader" style="margin-top:2rem;"></div>';
+            try {
+                const res = await fetch(`${API_BASE}/clientes/${cardCode}/notas?${qs.toString()}`);
+                const notas = await res.json();
+                list.innerHTML = '';
+
+                if (notas.length === 0) {
+                    list.innerHTML = '<p style="padding:1.5rem; color:var(--text-muted);">Nenhuma nota em aberto.</p>';
+                    return;
+                }
+
+                notas.forEach(nota => {
+                    const days = daysPastDue(nota.data_vencimento, nota.data_pagamento);
+                    const dtVenc = new Date(nota.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                    const dtEmi = new Date(nota.data_emissao).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+
+                    const valorTotal = nota.valor_total || nota.saldo_pendente; // Fallback se nao houver valor_total
+
+                    let statusColor = 'var(--text-muted)';
+                    let bgStatusColor = 'transparent';
+                    if (nota.status_cobranca === 'Promessa de Pagamento') {
+                        statusColor = 'var(--warning)';
+                        bgStatusColor = 'rgba(234, 179, 8, 0.15)';
+                    } else if (nota.status_cobranca === 'Pagamento Confirmado') {
+                        statusColor = 'var(--success)';
+                        bgStatusColor = 'rgba(16, 185, 129, 0.15)';
+                    } else if (days > 0) {
+                        statusColor = 'var(--danger)';
+                        bgStatusColor = 'rgba(239, 68, 68, 0.15)';
+                    }
+
+                    let atrasoHtml = '<span class="nota-col-atraso" style="color:var(--success); background:rgba(16,185,129,0.15);">No prazo</span>';
+                    if (days > 0) {
+                        atrasoHtml = `<span class="nota-col-atraso" style="color:var(--danger); background:rgba(239,68,68,0.15);">${days}d</span>`;
+                    }
+                    
+                    const dtPromessa = nota.data_promessa ? new Date(nota.data_promessa).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--';
+                    const dtPagamento = nota.data_pagamento ? new Date(nota.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : '--';
+                    const contaRazaoText = nota.conta_razao_codigo || nota.conta_razao_nome ? `${nota.conta_razao_codigo || ''}${nota.conta_razao_nome ? ` - ${nota.conta_razao_nome}` : ''}` : '--';
+                    const bancoText = nota.banco || '--';
+
+                    const row = document.createElement('div');
+                    row.className = 'nota-row';
+                    row.dataset.docEntry = nota.doc_entry;
+                    row.onclick = () => selectNota(nota, row);
+
+                    // Coluna dinâmica: se for pago, mostra data de pgt, senao mostra promessa
+                    const dynamicCol = isPago 
+                        ? `<div class="nota-col nota-col-date" style="color:var(--success); font-weight:600;"><i class="ph ph-check-circle"></i> ${dtPagamento}</div>`
+                        : `<div class="nota-col nota-col-date" style="color:var(--warning); font-weight:600;">${dtPromessa !== '--' ? `<i class="ph ph-calendar"></i> ${dtPromessa}` : '--'}</div>`;
+
+                    row.innerHTML = `
+                        <div class="nota-col-label">
+                            <span style="color:#e2e8f0;">NFS-e <b>${nota.nfse || '--'}</b></span>
+                            <small>SAP: ${nota.numero_documento}</small>
+                        </div>
+                        <div class="nota-col nota-col-date" style="color:var(--text-muted);">${dtEmi}</div>
+                        <div class="nota-col nota-col-date ${days > 0 && !isPago ? '' : 'text-success'}" style="${days > 0 && !isPago ? 'color:var(--danger); font-weight:600;' : 'color:#cbd5e1;'}">${dtVenc}</div>
+                        <div class="nota-col" style="color:#cbd5e1;">${contaRazaoText}</div>
+                        <div class="nota-col" style="color:#cbd5e1;">${bancoText}</div>
+                        ${dynamicCol}
+                        <div class="nota-col" style="text-align:center;">${atrasoHtml}</div>
+                        <div class="nota-col nota-col-currency" style="color:#94a3b8;">${formatter.format(valorTotal)}</div>
+                        <div class="nota-col nota-col-currency" style="color:#f8fafc; font-weight:700;">${formatter.format(nota.saldo_pendente)}</div>
+                        <div class="nota-col nota-col-status" style="color:${statusColor};">
+                            <span style="background:${bgStatusColor}; border-radius:4px; padding:0.2rem 0.5rem;">${nota.status_cobranca || 'Pendente'}</span>
+                        </div>`;
+                    list.appendChild(row);
+                });
+
+                if (keepOpenDocEntry) {
+                    const savedRow = document.querySelector(`.nota-row[data-doc-entry="${keepOpenDocEntry}"]`);
+                    if (savedRow) savedRow.classList.add('active');
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function selectNota(nota, rowEl) {
+            document.querySelectorAll('.nota-row').forEach(r => r.classList.remove('active'));
+            rowEl.classList.add('active');
+            currentDocEntry = nota.doc_entry;
+
+            const dtVenc = new Date(nota.data_vencimento).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+            document.getElementById('detail-nfse-title').innerText = `NFS-e ${nota.nfse || '--'} · Doc ${nota.numero_documento}`;
+            const contaRazaoDetail = nota.conta_razao_codigo || nota.conta_razao_nome ? ` · Conta Razão: ${nota.conta_razao_codigo || ''}${nota.conta_razao_nome ? ` - ${nota.conta_razao_nome}` : ''}` : '';
+            const bancoDetail = nota.banco ? ` · Banco: ${nota.banco}` : '';
+            let subText = `Vencimento: ${dtVenc} · Saldo: ${formatter.format(nota.saldo_pendente)} · Resp: ${nota.responsavel || '--'}${contaRazaoDetail}${bancoDetail}`;
+            if (nota.data_pagamento) {
+                const dtPag = new Date(nota.data_pagamento).toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                subText += ` · PAGO EM: ${dtPag}`;
+                document.getElementById('historico-form').style.display = 'none';
+            } else {
+                document.getElementById('historico-form').style.display = 'flex';
+            }
+            document.getElementById('detail-nfse-sub').innerText = subText;
+
+            document.getElementById('detail-panel').classList.add('open');
+
+            loadTimeline(nota.doc_entry);
+        }
+
+        function closeDetail() {
+            document.getElementById('detail-panel').classList.remove('open');
+            document.querySelectorAll('.nota-row').forEach(r => r.classList.remove('active'));
+            currentDocEntry = null;
+        }
+
+        async function salvarObservacaoCliente() {
+            if (!currentCardCode) return;
+            const obs = document.getElementById('obs-geral-textarea').value;
+            const resp = document.getElementById('ipt-responsavel').value || 'Sistema';
+            try {
+                const res = await fetch(`${API_BASE}/clientes/${currentCardCode}/observacao`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ observacao: obs, atualizado_por: resp })
+                });
+                const data = await res.json();
+                const dt = new Date(data.atualizado_em).toLocaleString('pt-BR');
+                document.getElementById('obs-geral-meta').innerText = `Salvo por ${data.atualizado_por || 'Sistema'} em ${dt}`;
+            } catch (e) { alert('Erro ao salvar observação.'); }
+        }
+
+        async function loadTimeline(docEntry) {
+            const container = document.getElementById('timeline-container');
+            container.innerHTML = '<div class="loader"></div>';
+            try {
+                const res = await fetch(`${API_BASE}/notas/${docEntry}/historico`);
+                const historico = await res.json();
+                container.innerHTML = '';
+                if (historico.length === 0) {
+                    container.innerHTML = '<p style="color:var(--text-muted); font-size:0.85rem;">Nenhuma tratativa registrada ainda.</p>';
+                    return;
+                }
+                const acaoIcons = {
+                    'Contato por Telefone': '📞', 'Envio de E-mail': '📧',
+                    'Mensagem via WhatsApp': '💬', 'Promessa de Pagamento': '✅',
+                    'Sem Resposta': '🔇', 'Pagamento Confirmado': '💰'
+                };
+                historico.forEach(hist => {
+                    const dt = new Date(hist.data_hora).toLocaleString('pt-BR');
+                    const icon = acaoIcons[hist.acao] || '📝';
+                    const promessaHtml = hist.data_promessa
+                        ? `<div style="margin-top:0.6rem; font-size:0.75rem; color:var(--warning); background:rgba(234,179,8,0.1); padding:0.3rem 0.6rem; border-radius:4px; display:inline-block;"><i class="ph ph-calendar"></i> Promessa p/ ${new Date(hist.data_promessa).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}</div>`
+                        : '';
+                    container.innerHTML += `
+                        <div class="timeline-event">
+                            <div class="chat-meta">
+                                <b>${hist.responsavel}</b> · ${dt} 
+                                <span class="chat-action-inline">· ${icon} ${hist.acao}</span>
+                            </div>
+                            <div class="chat-body">${hist.observacao.replace(/\n/g, '<br>')}${promessaHtml}</div>
+                        </div>`;
+                });
+                
+                // Rolagem automatica pro final do chat
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 50);
+            } catch (err) { console.error(err); }
+        }
+
+        async function submitAcao() {
+            if (!currentDocEntry) return;
+            const btn = document.getElementById('btn-add-historico');
+            const payload = {
+                responsavel: document.getElementById('ipt-responsavel').value,
+                acao: document.getElementById('ipt-acao').value,
+                observacao: document.getElementById('ipt-obs').value,
+                data_promessa: document.getElementById('ipt-data-promessa').value || null
+            };
+            try {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i>';
+                await fetch(`${API_BASE}/notas/${currentDocEntry}/historico`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                document.getElementById('ipt-obs').value = '';
+                document.getElementById('ipt-data-promessa').value = '';
+                document.getElementById('group-data-promessa').style.display = 'none';
+                
+                // Atualiza a interface
+                await loadClientes();
+                await loadNotasCliente(currentCardCode, document.getElementById('cliente-nome-title').innerText, currentDocEntry);
+                await loadTimeline(currentDocEntry);
+                
+                btn.innerHTML = '<i class="ph ph-check"></i>';
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph ph-paper-plane-right"></i>';
+                }, 1500);
+            } catch (e) {
+                btn.disabled = false;
+                alert('Erro ao salvar o histórico.');
+            }
+        }
+    </script>
+</body>
+</html>

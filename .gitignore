@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.env
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data dumps
+dumps/
+*_dump.json
+
+# Bytecode
+.pytest_cache/
+
+# Uvicorn / FastAPI
+*.pid
+
+# Postman collections
+service_layer_sap.postman_collection.json

@@ -237,20 +237,30 @@
 
         .filters-container {
             display: flex;
+            flex-wrap: wrap;
             gap: 1rem;
             margin-bottom: 2rem;
             background: var(--surface-color);
-            padding: 1rem;
+            padding: 1.5rem;
             border-radius: 12px;
             border: 1px solid var(--border-color);
-            flex-wrap: wrap;
             align-items: flex-end;
+            width: 100%;
         }
 
         .filters-container .form-group {
             margin-bottom: 0;
-            flex: 1;
-            min-width: 150px;
+            flex: 1 1 180px;
+        }
+
+        .filters-container .date-range-group {
+            flex: 2 1 360px;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .filters-container .btn-group-clear {
+            flex: 0 0 auto;
         }
 
         /* Tabela Interativa de Notas */
@@ -533,8 +543,8 @@
         /* Cabeçalho da lista */
         .list-thead {
             display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
-            min-width: 1000px;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
+            min-width: 1100px;
             padding: 0.8rem 1.2rem;
             background: rgba(0,0,0,0.2);
             border-bottom: 1px solid var(--border-color);
@@ -551,8 +561,8 @@
 
         .nota-row {
             display: grid;
-            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
-            min-width: 1000px;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr 1fr 0.8fr 1fr 1fr 1fr 1.2fr;
+            min-width: 1100px;
             align-items: center;
             padding: 0.75rem 1.2rem;
             border-bottom: 1px solid var(--border-color);
@@ -681,6 +691,27 @@
         .header-right {
             display: flex;
             align-items: center;
+        }
+
+        .btn-export {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: #f8fafc;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.2s;
+            margin-left: 1rem;
+        }
+
+        .btn-export:hover {
+            background: rgba(16, 185, 129, 0.1);
+            border-color: var(--success);
+            color: var(--success);
         }
 
         .btn-sync {
@@ -862,6 +893,68 @@
             }
         }
 
+        /* ── Edit Button inline na nota-row ── */
+        .nota-edit-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            border-radius: 6px;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+        }
+        .nota-edit-btn:hover {
+            background: rgba(59,130,246,0.15);
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* ── Modal de Edição da Nota ── */
+        .edit-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15,23,42,0.75);
+            backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+        .edit-modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .edit-modal {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.6);
+            transform: translateY(16px) scale(0.97);
+            transition: transform 0.3s cubic-bezier(0.16,1,0.3,1);
+        }
+        .edit-modal-overlay.active .edit-modal {
+            transform: translateY(0) scale(1);
+        }
+        .edit-modal h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
         .loader {
             border: 3px solid var(--border-color);
             border-top: 3px solid var(--primary);
@@ -881,10 +974,68 @@
                 transform: rotate(360deg);
             }
         }
+        /* Login Overlay */
+        .login-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--bg-color);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(8px);
+        }
+        .login-card {
+            background: var(--surface-color);
+            padding: 2.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .login-card h2 {
+            margin-bottom: 2rem;
+            text-align: center;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .login-card .form-group { margin-bottom: 1.5rem; }
+        .login-card .btn-login {
+            width: 100%;
+            padding: 0.8rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 1rem;
+        }
+        .login-card .btn-login:hover { background: var(--primary-hover); transform: translateY(-1px); }
     </style>
 </head>
 
 <body>
+    <!-- Overlay de Login -->
+    <div id="login-overlay" class="login-overlay" style="display:none;">
+        <div class="login-card">
+            <h2><i class="ph-fill ph-shield-check"></i> Zeus Cobranças</h2>
+            <div class="form-group">
+                <label>Usuário</label>
+                <input type="text" id="login-username" class="form-control" placeholder="Digite seu usuário">
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" id="login-password" class="form-control" placeholder="••••••••" onkeyup="if(event.key==='Enter') login()">
+            </div>
+            <button class="btn-login" onclick="login()" id="btn-login-submit">Acessar Sistema</button>
+            <div id="login-error" style="color:var(--danger); font-size:0.8rem; margin-top:1rem; text-align:center; display:none;"></div>
+        </div>
+    </div>
 
     <header>
         <div class="header-left">
@@ -908,9 +1059,12 @@
                 </div>
                 <div style="font-size: 0.9rem; color: #f8fafc; display:flex; align-items:center; gap:0.5rem; position:relative;">
                     <i class="ph-fill ph-user-circle" style="font-size:1.5rem; color:var(--primary);"></i>
-                    <b>Financeiro</b>
+                    <b id="header-username">Usuário</b>
                     <div id="notification-badge" style="display:none; position:absolute; top:-5px; left:-5px; width:10px; height:10px; background:var(--danger); border-radius:50%; border:2px solid var(--bg-dark);"></div>
                 </div>
+                <button onclick="logout()" style="background:rgba(239, 68, 68, 0.1); border:1px solid rgba(239, 68, 68, 0.2); color:#fca5a5; padding: 0.4rem 0.6rem; border-radius:6px; cursor:pointer; font-size:0.75rem; font-weight:600; display:flex; align-items:center; gap:0.3rem;" title="Sair do Sistema">
+                    <i class="ph ph-sign-out"></i> Sair
+                </button>
             </div>
         </div>
     </header>
@@ -929,40 +1083,340 @@
         </div>
     </div>
 
-    <main id="main-content">
-        <!-- View 0: Dashboard -->
-        <div id="dash-view" style="display:none; animation: fadeIn 0.4s;">
-            <h1>Visão Geral</h1>
-            
-            <div style="display:flex; gap:1.5rem; margin-bottom:2rem;">
-                <div class="summary-card" style="flex:1;">
-                    <div class="stat-label" style="font-weight:600;">Total Global Ativo</div>
-                    <div class="stat-value" id="dash-total" style="color: #cbd5e1; font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+    <!-- Modal de Edição de Nota -->
+    <div id="edit-modal-overlay" class="edit-modal-overlay" onclick="if(event.target===this) closeEditModal();">
+        <div class="edit-modal">
+            <h3>
+                <i class="ph ph-pencil-simple" style="color:var(--primary);"></i>
+                Editar Nota
+            </h3>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-top:-1rem; margin-bottom:1.5rem;" id="edit-modal-title"></div>
+
+            <div class="form-group">
+                <label>NFS-e</label>
+                <input type="text" id="edit-nfse" class="form-control" placeholder="Número da NFS-e">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem;">
+                <div class="form-group">
+                    <label>Data Emissão</label>
+                    <input type="date" id="edit-emissao" class="form-control">
                 </div>
-                <div class="summary-card atrasado" style="flex:1;">
-                    <div class="stat-label" style="font-weight:600;">Total em Atraso</div>
-                    <div class="stat-value" id="dash-atrasado" style="color: var(--danger); font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+                <div class="form-group">
+                    <label>Data Vencimento</label>
+                    <input type="date" id="edit-vencimento" class="form-control">
                 </div>
-                <div class="summary-card no-prazo" style="flex:1;">
-                    <div class="stat-label" style="font-weight:600;">Total no Prazo</div>
-                    <div class="stat-value" id="dash-prazo" style="color: var(--success); font-size:1.8rem; margin-top:0.5rem;">R$ 0,00</div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:0.75rem;">
+                <div class="form-group">
+                    <label>Cód. Conta Razão</label>
+                    <input type="text" id="edit-conta-cod" class="form-control" placeholder="Código">
+                </div>
+                <div class="form-group">
+                    <label>Nome Conta Razão</label>
+                    <input type="text" id="edit-conta-nome" class="form-control" placeholder="Nome da conta">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Banco</label>
+                <input type="text" id="edit-banco" class="form-control" placeholder="Nome do Banco">
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.75rem;">
+                <div class="form-group">
+                    <label>Valor Total (NF-e)</label>
+                    <input type="text" id="edit-valor-total" class="form-control" oninput="maskCurrency(this)">
+                </div>
+                <div class="form-group">
+                    <label>Saldo Pendente</label>
+                    <input type="text" id="edit-saldo" class="form-control" oninput="maskCurrency(this)">
                 </div>
             </div>
 
-            <div style="display:grid; grid-template-columns: 1fr 2fr; gap:1.5rem;">
+            <div class="form-group">
+                <label>Status de Cobrança</label>
+                <select id="edit-status" class="form-control">
+                    <option value="Pendente">Pendente</option>
+                    <option value="Contato por Telefone">📞 Contato Telefônico</option>
+                    <option value="Envio de E-mail">📧 E-mail</option>
+                    <option value="Mensagem via WhatsApp">💬 WhatsApp</option>
+                    <option value="Promessa de Pagamento">✅ Promessa de Pagt.</option>
+                    <option value="Sem Resposta">🔇 Sem Resposta</option>
+                    <option value="Pagamento Confirmado">💰 Pagt. Confirmado</option>
+                </select>
+            </div>
+
+            <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                <button id="edit-save-btn" class="btn-submit" style="flex:1;" onclick="saveEditNota()">
+                    <i class="ph ph-check"></i> Salvar
+                </button>
+                <button onclick="closeEditModal()" style="flex:0.4; background:transparent; border:1px solid var(--border-color); color:var(--text-muted); border-radius:8px; padding:0.75rem; cursor:pointer; transition:all 0.2s;" onmouseover="this.style.borderColor='#f8fafc'; this.style.color='#f8fafc';" onmouseout="this.style.borderColor='var(--border-color)'; this.style.color='var(--text-muted)';">
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main id="main-content">
+        <!-- View 0: Dashboard -->
+        <div id="dash-view" style="display:none; animation: fadeIn 0.4s;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h1 style="font-size:1.5rem; font-weight:800; display:flex; align-items:center; gap:0.75rem;">
+                    <i class="ph-fill ph-chart-line-up" style="color:var(--primary);"></i>
+                    Dashboard Financeiro
+                </h1>
+                <div style="font-size:0.8rem; color:var(--text-muted);">
+                    Última atualização: <span id="dash-updated-at" style="color:#f1f5f9; font-weight:600;">--</span>
+                </div>
+            </div>
+
+            <!-- Filtros do Dashboard -->
+            <div class="filters-container" style="margin-bottom: 2rem;">
+                <div class="form-group">
+                    <label><i class="ph ph-calendar"></i> Período Vencimento</label>
+                    <select id="dash-vencimento-select" class="form-control" onchange="toggleDashVencDateInputs(); debouncedRenderDash();">
+                        <option value="">Todo o Período</option>
+                        <option value="semana_passada">Semana Passada</option>
+                        <option value="esta_semana">Esta Semana</option>
+                        <option value="proxima_semana">Próxima Semana</option>
+                        <option value="mes_passado">Mês Passado</option>
+                        <option value="este_mes">Este Mês</option>
+                        <option value="proximo_mes">Próximo Mês</option>
+                        <option value="ano_passado">Ano Passado</option>
+                        <option value="este_ano">Este Ano</option>
+                        <option value="proximo_ano">Próximo Ano</option>
+                        <option value="periodo">Período Específico</option>
+                    </select>
+                </div>
+                
+                <div id="dash-venc-date-inputs" class="date-range-group" style="display:none;">
+                    <div class="form-group">
+                        <label>Venc. Início</label>
+                        <input type="date" id="dash-vencimento-inicio" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                    <div class="form-group">
+                        <label>Venc. Fim</label>
+                        <input type="date" id="dash-vencimento-fim" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="ph ph-file-text"></i> Período Emissão</label>
+                    <select id="dash-emissao-select" class="form-control" onchange="toggleDashEmiDateInputs(); debouncedRenderDash();">
+                        <option value="">Todo o Período</option>
+                        <option value="semana_passada">Semana Passada</option>
+                        <option value="esta_semana">Esta Semana</option>
+                        <option value="proxima_semana">Próxima Semana</option>
+                        <option value="mes_passado">Mês Passado</option>
+                        <option value="este_mes">Este Mês</option>
+                        <option value="proximo_mes">Próximo Mês</option>
+                        <option value="ano_passado">Ano Passado</option>
+                        <option value="este_ano">Este Ano</option>
+                        <option value="proximo_ano">Próximo Ano</option>
+                        <option value="periodo">Período Específico</option>
+                    </select>
+                </div>
+
+                <div id="dash-emi-date-inputs" class="date-range-group" style="display:none;">
+                    <div class="form-group">
+                        <label>Emi. Início</label>
+                        <input type="date" id="dash-emissao-inicio" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                    <div class="form-group">
+                        <label>Emi. Fim</label>
+                        <input type="date" id="dash-emissao-fim" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="ph ph-hand-coins"></i> Período Pagamento</label>
+                    <select id="dash-pagamento-select" class="form-control" onchange="toggleDashPagDateInputs(); debouncedRenderDash();">
+                        <option value="">Todo o Período</option>
+                        <option value="semana_passada">Semana Passada</option>
+                        <option value="esta_semana">Esta Semana</option>
+                        <option value="mes_passado">Mês Passado</option>
+                        <option value="este_mes">Este Mês</option>
+                        <option value="ano_passado">Ano Passado</option>
+                        <option value="este_ano">Este Ano</option>
+                        <option value="periodo">Período Específico</option>
+                    </select>
+                </div>
+
+                <div id="dash-pag-date-inputs" class="date-range-group" style="display:none;">
+                    <div class="form-group">
+                        <label>Pgto. Início</label>
+                        <input type="date" id="dash-pagamento-inicio" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                    <div class="form-group">
+                        <label>Pgto. Fim</label>
+                        <input type="date" id="dash-pagamento-fim" class="form-control" onchange="debouncedRenderDash()">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label><i class="ph ph-user-focus"></i> Responsável</label>
+                    <select id="dash-filter-responsavel" class="form-control" onchange="debouncedRenderDash()">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div class="form-group" style="flex:1.5;">
+                    <label><i class="ph ph-buildings"></i> Cliente / NFSe</label>
+                    <input type="text" id="dash-filter-cliente" class="form-control" placeholder="Nome, Código, NFSe ou Doc..." oninput="debouncedRenderDash()">
+                </div>
+
+                <div class="btn-group-clear" style="margin-bottom: 5px;">
+                    <button onclick="clearDashFilters()" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:#fca5a5; padding: 0.6rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.75rem; font-weight:600; display:flex; align-items:center; gap:0.4rem; height: 38px;" title="Limpar Filtros">
+                        <i class="ph ph-trash" style="font-size: 1rem;"></i>
+                    </button>
+                </div>
+            </div>
+
+
+
+            <!-- ───── Seção A Receber ───── -->
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                <div style="width:4px; height:20px; background:var(--primary); border-radius:2px;"></div>
+                <h2 style="font-size:1rem; font-weight:600; color:var(--text-muted); letter-spacing:0.05em; text-transform:uppercase;">Contas a Receber</h2>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:1rem; margin-bottom:2rem;">
+                <div class="summary-card total" style="cursor:pointer;" onclick="showView('clientes')" title="Ver Contas a Receber">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600;">Total a Receber</div>
+                        <i class="ph ph-arrow-up-right" style="color:var(--primary); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-total-receber" style="font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="display:flex; gap:1rem; margin-top:0.5rem; font-size:0.75rem; color:var(--text-muted);">
+                        <span><b id="dash-notas-abertas" style="color:#f8fafc;">0</b> notas</span>
+                        <span><b id="dash-clientes-abertos" style="color:#f8fafc;">0</b> clientes</span>
+                    </div>
+                </div>
+                <div class="summary-card atrasado" style="cursor:pointer;" onclick="showView('clientes')" title="Ver notas atrasadas">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600; color:#f87171;">Em Atraso</div>
+                        <i class="ph ph-warning" style="color:var(--danger); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-atrasado" style="color:var(--danger); font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">
+                        <b id="dash-qtd-atrasadas" style="color:#f87171;">0</b> notas em atraso
+                    </div>
+                </div>
+                <div class="summary-card no-prazo" style="cursor:pointer;" onclick="showView('clientes')" title="Ver notas no prazo">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600; color:#34d399;">No Prazo</div>
+                        <i class="ph ph-check-circle" style="color:var(--success); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-prazo" style="color:var(--success); font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">
+                        <b id="dash-qtd-prazo" style="color:#34d399;">0</b> notas no prazo
+                    </div>
+                </div>
+                <div class="summary-card" style="border-left: 4px solid var(--warning); cursor:default;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600; color:#fbbf24;">Sem Responsável</div>
+                        <i class="ph ph-user-x" style="color:var(--warning); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-sem-responsavel" style="color:var(--warning); font-size:1.7rem; margin-top:0.4rem;">0</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">notas abertas sem atendente</div>
+                </div>
+            </div>
+
+            <!-- ───── Seção Recebidas ───── -->
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:1rem;">
+                <div style="width:4px; height:20px; background:var(--success); border-radius:2px;"></div>
+                <h2 style="font-size:1rem; font-weight:600; color:var(--text-muted); letter-spacing:0.05em; text-transform:uppercase;">Contas Recebidas</h2>
+            </div>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap:1rem; margin-bottom:2rem;">
+                <div class="summary-card" style="border-left: 4px solid var(--success); cursor:pointer;" onclick="showView('recebidas')" title="Ver Contas Recebidas">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600;">Total Recebido</div>
+                        <i class="ph ph-arrow-up-right" style="color:var(--success); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-total-recebido" style="color:var(--success); font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="display:flex; gap:1rem; margin-top:0.5rem; font-size:0.75rem; color:var(--text-muted);">
+                        <span><b id="dash-notas-recebidas" style="color:#f8fafc;">0</b> notas</span>
+                        <span><b id="dash-clientes-recebidos" style="color:#f8fafc;">0</b> clientes</span>
+                    </div>
+                </div>
+                <div class="summary-card" style="border-left: 4px solid #06b6d4; cursor:pointer;" onclick="showView('recebidas')" title="Recebido este mês">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600;">Recebido Este Mês</div>
+                        <i class="ph ph-calendar-check" style="color:#06b6d4; font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-recebido-mes" style="color:#22d3ee; font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">
+                        <b id="dash-qtd-recebida-mes" style="color:#22d3ee;">0</b> notas recebidas no mês
+                    </div>
+                </div>
+                <div class="summary-card no-prazo" style="cursor:default;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600; color:#34d399;">Recebido No Prazo</div>
+                        <i class="ph ph-thumbs-up" style="color:var(--success); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-recebido-prazo" style="color:var(--success); font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">pagamentos dentro do vencimento</div>
+                </div>
+                <div class="summary-card atrasado" style="cursor:default;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="stat-label" style="font-weight:600; color:#f87171;">Recebido com Atraso</div>
+                        <i class="ph ph-clock" style="color:var(--danger); font-size:1.1rem;"></i>
+                    </div>
+                    <div class="stat-value" id="dash-recebido-atrasado" style="color:var(--danger); font-size:1.7rem; margin-top:0.4rem;">R$ 0,00</div>
+                    <div style="font-size:0.75rem; color:var(--text-muted); margin-top:0.5rem;">pagamentos após o vencimento</div>
+                </div>
+            </div>
+
+            <!-- ───── Gráficos + Aging + Responsáveis ───── -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+                <!-- Donut A Receber -->
                 <div class="card" style="display:flex; flex-direction:column; align-items:center;">
-                    <h3 style="font-size:0.95rem; margin-bottom:1rem; color:var(--text-muted); align-self:flex-start;">Status da Carteira</h3>
-                    <div style="width:250px; height:250px; position:relative;">
+                    <h3 style="font-size:0.9rem; margin-bottom:1rem; color:var(--text-muted); align-self:flex-start; text-transform:uppercase; letter-spacing:0.05em;">Carteira — A Receber</h3>
+                    <div style="width:220px; height:220px; position:relative;">
                         <canvas id="chartStatus"></canvas>
                     </div>
                 </div>
+                <!-- Aging buckets -->
                 <div class="card">
-                    <h3 style="font-size:0.95rem; margin-bottom:1rem; color:var(--text-muted);">Top 5 Clientes - Maior Risco (Atraso)</h3>
-                    <div style="height:250px; position:relative; width:100%;">
-                        <canvas id="chartTopClientes"></canvas>
-                    </div>
+                    <h3 style="font-size:0.9rem; margin-bottom:1.2rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Aging — Dias em Atraso</h3>
+                    <div id="dash-aging-bars"></div>
                 </div>
             </div>
+
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom:1.5rem;">
+                <!-- Por Responsável: A Receber -->
+                <div class="card">
+                    <h3 style="font-size:0.9rem; margin-bottom:1.2rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Por Atendente — A Receber</h3>
+                    <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Atendente</th>
+                                <th style="text-align:right; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Notas</th>
+                                <th style="text-align:right; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Carteira</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-por-responsavel-receber"></tbody>
+                    </table>
+                </div>
+                <!-- Por Responsável: Recebidas -->
+                <div class="card">
+                    <h3 style="font-size:0.9rem; margin-bottom:1.2rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Por Atendente — Recebidas</h3>
+                    <table style="width:100%; font-size:0.82rem; border-collapse:collapse;">
+                        <thead>
+                            <tr>
+                                <th style="text-align:left; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Atendente</th>
+                                <th style="text-align:right; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Notas</th>
+                                <th style="text-align:right; padding:0.4rem 0; color:var(--text-muted); font-weight:600; border-bottom:1px solid var(--border-color);">Recebido</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dash-por-responsavel-recebidas"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Top Devedores -->
+            <div class="card" style="margin-bottom:1.5rem;">
+                <h3 style="font-size:0.9rem; margin-bottom:1.2rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em;">Top 5 — Maiores Saldos Abertos</h3>
+                <div id="dash-top-devedores"></div>
+            </div>
+
         </div>
 
         <!-- View 1: Clientes (Grid) -->
@@ -1011,7 +1465,7 @@
                         <option value="periodo">Período Específico</option>
                     </select>
                 </div>
-                <div id="date-range-container" style="display: none; gap: 0.5rem; flex: 2; min-width: 300px;">
+                <div id="date-range-container" class="date-range-group" style="display: none;">
                     <div class="form-group">
                         <label>De (Venc.)</label>
                         <input type="date" id="filter-vencimento-inicio" class="form-control" onchange="loadClientes()">
@@ -1036,7 +1490,7 @@
                         <option value="periodo">Período Específico</option>
                     </select>
                 </div>
-                <div id="date-range-pagamento-container" style="display: none; gap: 0.5rem; flex: 2; min-width: 300px;">
+                <div id="date-range-pagamento-container" class="date-range-group" style="display: none;">
                     <div class="form-group">
                         <label>De (Pagto.)</label>
                         <input type="date" id="filter-pagamento-inicio" class="form-control" onchange="loadClientes()">
@@ -1047,12 +1501,21 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Cliente (Nome ou Cód)</label>
-                    <input type="text" id="filter-cliente" class="form-control" placeholder="Ex: Algar">
+                    <label>Cliente / NFSe</label>
+                    <input type="text" id="filter-cliente" class="form-control" placeholder="Nome, Cód, NFSe ou Doc...">
                 </div>
                 <div class="form-group">
                     <label>Responsável</label>
-                    <input type="text" id="filter-responsavel" class="form-control" placeholder="Ex: João">
+                    <select id="filter-responsavel" class="form-control" onchange="loadClientes()">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Conta Razão</label>
+                    <select id="filter-conta-razao" class="form-control" onchange="loadClientes()">
+                        <option value="">Todas as Contas</option>
+                        <!-- Populated by JS -->
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Ordenar Por</label>
@@ -1065,6 +1528,11 @@
                         <option value="nome_az">Nome do Cliente (A-Z)</option>
                         <option value="responsavel">Responsável (A-Z)</option>
                     </select>
+                </div>
+                <div class="btn-group-clear" style="margin-bottom: 5px;">
+                    <button onclick="clearMainFilters()" style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:#fca5a5; padding: 0.6rem 0.8rem; border-radius:8px; cursor:pointer; font-size:0.75rem; font-weight:600; display:flex; align-items:center; gap:0.4rem; height: 38px;" title="Limpar Filtros">
+                        <i class="ph ph-trash" style="font-size: 1rem;"></i>
+                    </button>
                 </div>
             </div>
 
@@ -1100,9 +1568,14 @@
                         <span style="color:var(--border-color)">|</span>
                         <span class="summary-chip">Total: <b id="cli-sum-total">--</b></span>
                         <span style="color:var(--border-color)">|</span>
+                        <span class="summary-chip">Notas: <b id="cli-sum-qtd" style="color:var(--primary);">--</b></span>
+                        <span style="color:var(--border-color)">|</span>
                         <span class="summary-chip" id="cli-sum-data-antiga" style="color:var(--text-muted);"></span>
                         <span class="summary-chip" id="cli-sum-responsavel" style="color:var(--text-muted);"></span>
                     </div>
+                    <button class="btn-export" onclick="exportarNotas()" title="Exportar Notas para Excel/CSV">
+                        <i class="ph ph-file-csv"></i> Exportar
+                    </button>
                 </div>
                 <!-- Obs gerais na barra de topo -->
                 <div class="obs-top-bar">
@@ -1131,11 +1604,12 @@
                         <span>Vencimento</span>
                         <span>Conta Razão</span>
                         <span>Banco</span>
+                        <span>Responsável</span>
                         <span id="th-promessa-pagamento">Promessa</span>
                         <span style="text-align:center">Atraso</span>
                         <span style="text-align:right">Valor NF-e</span>
                         <span style="text-align:right">Saldo</span>
-                        <span style="text-align:right">Status</span>
+                        <span style="display:flex; justify-content:flex-end;">Status</span>
                     </div>
                     <div id="notas-list">
                         <div class="loader" style="margin:2rem auto;"></div>
@@ -1201,9 +1675,87 @@
         const API_BASE = '/api';
         let currentDocEntry = null;
         let currentCardCode = null;
+        let currentCardName = null;
+        let currentUser = null;
+        window.allUsers = [];
+
+        // --- Gestão de Autenticação ---
+        async function login() {
+            const user = document.getElementById('login-username').value;
+            const pass = document.getElementById('login-password').value;
+            const btn = document.getElementById('btn-login-submit');
+            const err = document.getElementById('login-error');
+            
+            if(!user || !pass) return;
+            
+            try {
+                btn.disabled = true;
+                btn.innerText = 'Autenticando...';
+                err.style.display = 'none';
+                
+                const res = await fetch(`${API_BASE}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: user, password: pass })
+                });
+                
+                if(!res.ok) throw new Error('Usuário ou senha incorretos');
+                
+                const data = await res.json();
+                localStorage.setItem('zeus_token', data.token);
+                localStorage.setItem('zeus_user', data.username);
+                
+                checkAuth();
+                initApp(); // Carrega os dados após o login
+            } catch (e) {
+                err.innerText = e.message;
+                err.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Acessar Sistema';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('zeus_token');
+            localStorage.removeItem('zeus_user');
+            window.location.reload();
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('zeus_token');
+            const user = localStorage.getItem('zeus_user');
+            const overlay = document.getElementById('login-overlay');
+            
+            if (!token) {
+                overlay.style.display = 'flex';
+                return false;
+            } else {
+                overlay.style.display = 'none';
+                currentUser = user;
+                document.getElementById('header-username').innerText = user;
+                // Preenche o responsável padrão nos campos
+                const rInput = document.getElementById('ipt-responsavel');
+                if(rInput) rInput.value = user;
+                return true;
+            }
+        }
 
         const formatter = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
+        function maskCurrency(i) {
+            let v = i.value.replace(/\D/g, '');
+            v = (v / 100).toFixed(2) + '';
+            v = v.replace(".", ",");
+            v = v.replace(/(\d)(\d{3})(\d{3}),/g, "$1.$2.$3,");
+            v = v.replace(/(\d)(\d{3}),/g, "$1.$2,");
+            i.value = "R$ " + v;
+        }
+
+        function currencyToFloat(v) {
+            if (!v) return 0;
+            return parseFloat(v.replace(/[^\d,]/g, '').replace(',', '.'));
+        }
         function daysPastDue(dateString, endDateString = null) {
             if (!dateString) return 0;
             const [year, month, day] = dateString.split('T')[0].split('-');
@@ -1224,6 +1776,15 @@
 
         let searchTimeout;
         document.addEventListener('DOMContentLoaded', () => {
+            if (!checkAuth()) return; 
+            initApp();
+        });
+
+        function initApp() {
+            // Evita duplicar listeners se chamar initApp mais de uma vez
+            if (window.appInitialized) return;
+            window.appInitialized = true;
+
             document.querySelectorAll('.filters-container input, .filters-container select').forEach(el => {
                 if (el.tagName === 'SELECT' || el.type === 'date') {
                     el.addEventListener('change', () => loadClientes());
@@ -1239,10 +1800,33 @@
                     this.value === 'Promessa de Pagamento' ? 'block' : 'none';
             });
 
+            fetch(`${API_BASE}/usuarios`).then(r => r.json()).then(data => { 
+                window.allUsers = data; 
+                // Popula os selects de responsáveis
+                const selects = ['filter-responsavel', 'dash-filter-responsavel'];
+                selects.forEach(id => {
+                    const el = document.getElementById(id);
+                    if(el) {
+                        el.innerHTML = `
+                            <option value="">Todos os Responsáveis</option>
+                            <option value="sem_responsavel">Sem Responsável</option>
+                            ${data.map(u => `<option value="${u}">${u}</option>`).join('')}
+                        `;
+                    }
+                });
+            });
+
+            fetch(`${API_BASE}/contas-razao`).then(r => r.json()).then(data => {
+                const el = document.getElementById('filter-conta-razao');
+                if(el && data) {
+                    el.innerHTML = '<option value="">Todas as Contas</option>' + 
+                        data.map(c => `<option value="${c.conta_razao_codigo}">${c.conta_razao_nome}</option>`).join('');
+                }
+            });
+
             fetch(`${API_BASE}/clientes`).then(r => r.json()).then(data => {
                 globalTotalClientes = data.length;
                 
-                // Routing inicial: verifica se há "?cliente=CODE" na URL
                 const params = new URLSearchParams(window.location.search);
                 const cliParam = params.get('cliente');
                 const viewParam = params.get('view');
@@ -1260,7 +1844,41 @@
                 }
             });
             updateSyncStatus();
-        });
+            
+            if(currentUser) document.getElementById('ipt-responsavel').value = currentUser;
+        }
+
+        function clearMainFilters() {
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-vencimento-tipo').value = '';
+            document.getElementById('filter-vencimento-inicio').value = '';
+            document.getElementById('filter-vencimento-fim').value = '';
+            document.getElementById('filter-pagamento-tipo').value = '';
+            document.getElementById('filter-pagamento-inicio').value = '';
+            document.getElementById('filter-pagamento-fim').value = '';
+            document.getElementById('filter-cliente').value = '';
+            document.getElementById('filter-responsavel').value = '';
+            document.getElementById('filter-conta-razao').value = '';
+            document.getElementById('filter-ordenacao').value = 'maior_saldo';
+            
+            toggleDateRangeInputs();
+            toggleDateRangePagamento();
+            loadClientes();
+        }
+
+        async function updateNotaResponsavel(docEntry, newResp) {
+            try {
+                const res = await fetch(`${API_BASE}/notas/${docEntry}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ responsavel: newResp || null })
+                });
+                if (!res.ok) throw new Error('Falha ao atualizar responsável');
+                // Opcional: mostrar toast de sucesso
+            } catch (e) {
+                alert('Erro ao atualizar responsável: ' + e.message);
+            }
+        }
 
         async function updateSyncStatus() {
             try {
@@ -1280,6 +1898,11 @@
             try {
                 const res = await fetch(`${API_BASE}/sync`, { method: 'POST' });
                 const data = await res.json();
+                
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Erro interno na sincronização');
+                }
+                
                 if (data.pagamentos_novos > 0) {
                     showNotification(`Identificamos <b>${data.pagamentos_novos}</b> novo(s) pagamento(s) no SAP e as contas já foram baixadas localmente.`);
                 }
@@ -1287,7 +1910,7 @@
                 if (currentViewMode === 'clientes' || currentViewMode === 'recebidas') loadClientes();
             } catch (e) {
                 console.error(e);
-                alert('Erro ao sincronizar com SAP');
+                alert('Erro ao sincronizar com SAP: ' + e.message);
             } finally {
                 btn.classList.remove('loading');
                 btn.disabled = false;
@@ -1366,6 +1989,45 @@
             if (view === 'clientes' || view === 'recebidas') loadClientes();
         }
 
+        let dashDebounceTimer;
+        function debouncedRenderDash() {
+            clearTimeout(dashDebounceTimer);
+            dashDebounceTimer = setTimeout(renderDashboard, 400);
+        }
+
+        function toggleDashVencDateInputs() {
+            const val = document.getElementById('dash-vencimento-select').value;
+            document.getElementById('dash-venc-date-inputs').style.display = val === 'periodo' ? 'flex' : 'none';
+        }
+
+        function toggleDashEmiDateInputs() {
+            const val = document.getElementById('dash-emissao-select').value;
+            document.getElementById('dash-emi-date-inputs').style.display = val === 'periodo' ? 'flex' : 'none';
+        }
+
+        function toggleDashPagDateInputs() {
+            const val = document.getElementById('dash-pagamento-select').value;
+            document.getElementById('dash-pag-date-inputs').style.display = val === 'periodo' ? 'flex' : 'none';
+        }
+
+        function clearDashFilters() {
+            document.getElementById('dash-vencimento-select').value = '';
+            document.getElementById('dash-vencimento-inicio').value = '';
+            document.getElementById('dash-vencimento-fim').value = '';
+            document.getElementById('dash-emissao-select').value = '';
+            document.getElementById('dash-emissao-inicio').value = '';
+            document.getElementById('dash-emissao-fim').value = '';
+            document.getElementById('dash-pagamento-select').value = '';
+            document.getElementById('dash-pagamento-inicio').value = '';
+            document.getElementById('dash-pagamento-fim').value = '';
+            document.getElementById('dash-filter-responsavel').value = '';
+            document.getElementById('dash-filter-cliente').value = '';
+            toggleDashVencDateInputs();
+            toggleDashEmiDateInputs();
+            toggleDashPagDateInputs();
+            renderDashboard();
+        }
+
         function toggleDateRangeInputs() {
             const tipo = document.getElementById('filter-vencimento-tipo').value;
             document.getElementById('date-range-container').style.display = tipo === 'periodo' ? 'flex' : 'none';
@@ -1376,68 +2038,151 @@
             document.getElementById('date-range-pagamento-container').style.display = tipo === 'periodo' ? 'flex' : 'none';
         }
 
-        let chart1, chart2;
-        let globalDataCache = [];
+        let chart1;
 
         async function renderDashboard() {
-            if (globalDataCache.length === 0) return; // Aguarda dados
+            try {
+                const venc = document.getElementById('dash-vencimento-select').value;
+                const vInic = document.getElementById('dash-vencimento-inicio').value;
+                const vFim = document.getElementById('dash-vencimento-fim').value;
+                const emi = document.getElementById('dash-emissao-select').value;
+                const eInic = document.getElementById('dash-emissao-inicio').value;
+                const eFim = document.getElementById('dash-emissao-fim').value;
+                const pag = document.getElementById('dash-pagamento-select').value;
+                const pInic = document.getElementById('dash-pagamento-inicio').value;
+                const pFim = document.getElementById('dash-pagamento-fim').value;
+                const resp = document.getElementById('dash-filter-responsavel').value;
+                const cli = document.getElementById('dash-filter-cliente').value;
 
-            const data = globalDataCache;
-            let totalA = 0, totalP = 0, total = 0;
-            
-            // Top 5 atrasados
-            const sortedByAtraso = [...data].sort((a,b) => parseFloat(b.saldo_atrasado || 0) - parseFloat(a.saldo_atrasado || 0)).slice(0, 5);
+                let url = `${API_BASE}/dashboard?`;
+                if (venc) url += `vencimento=${venc}&`;
+                if (vInic) url += `vencimento_inicio=${vInic}&`;
+                if (vFim) url += `vencimento_fim=${vFim}&`;
+                if (emi) url += `emissao=${emi}&`;
+                if (eInic) url += `emissao_inicio=${eInic}&`;
+                if (eFim) url += `emissao_fim=${eFim}&`;
+                if (pag) url += `pagamento=${pag}&`;
+                if (pInic) url += `pagamento_inicio=${pInic}&`;
+                if (pFim) url += `pagamento_fim=${pFim}&`;
+                if (resp) url += `responsavel=${resp}&`;
+                if (cli) url += `cliente=${cli}&`;
 
-            data.forEach(c => {
-                totalA += parseFloat(c.saldo_atrasado || 0);
-                totalP += parseFloat(c.saldo_no_prazo || 0);
-                total += parseFloat(c.saldo_total || 0);
-            });
+                const res = await fetch(url);
+                const d = await res.json();
+                const ar = d.a_receber;
+                const rc = d.recebidas;
 
-            document.getElementById('dash-total').innerText = formatter.format(total);
-            document.getElementById('dash-atrasado').innerText = formatter.format(totalA);
-            document.getElementById('dash-prazo').innerText = formatter.format(totalP);
+                // Timestamp
+                document.getElementById('dash-updated-at').innerText = new Date().toLocaleString('pt-BR');
 
-            // Chart 1: Status Donut
-            if(chart1) chart1.destroy();
-            const ctx1 = document.getElementById('chartStatus').getContext('2d');
-            chart1 = new Chart(ctx1, {
-                type: 'doughnut',
-                data: {
-                    labels: ['Atrasado', 'No Prazo'],
-                    datasets: [{
-                        data: [totalA, totalP],
-                        backgroundColor: ['#ef4444', '#10b981'],
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1' } } }, cutout: '70%'}
-            });
+                // ── A Receber ──
+                document.getElementById('dash-total-receber').innerText = formatter.format(ar.total_a_receber);
+                document.getElementById('dash-notas-abertas').innerText = ar.total_notas_abertas;
+                document.getElementById('dash-clientes-abertos').innerText = ar.total_clientes_abertos;
+                document.getElementById('dash-atrasado').innerText = formatter.format(ar.total_atrasado);
+                document.getElementById('dash-qtd-atrasadas').innerText = ar.qtd_notas_atrasadas;
+                document.getElementById('dash-prazo').innerText = formatter.format(ar.total_no_prazo);
+                document.getElementById('dash-qtd-prazo').innerText = ar.qtd_notas_no_prazo;
+                document.getElementById('dash-sem-responsavel').innerText = ar.qtd_sem_responsavel;
 
-            // Chart 2: Bar Top Clientes
-            if(chart2) chart2.destroy();
-            const ctx2 = document.getElementById('chartTopClientes').getContext('2d');
-            chart2 = new Chart(ctx2, {
-                type: 'bar',
-                data: {
-                    labels: sortedByAtraso.map(c => c.card_name.length > 15 ? c.card_name.substring(0,15)+'...' : c.card_name),
-                    datasets: [{
-                        label: 'Valor em Atraso (R$)',
-                        data: sortedByAtraso.map(c => c.saldo_atrasado),
-                        backgroundColor: '#ef4444',
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    scales: {
-                        y: { ticks: { color: '#94a3b8', callback: v => 'R$ '+v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                        x: { ticks: { color: '#cbd5e1' }, grid: { display: false } }
+                // ── Recebidas ──
+                document.getElementById('dash-total-recebido').innerText = formatter.format(rc.total_recebido);
+                document.getElementById('dash-notas-recebidas').innerText = rc.total_notas_recebidas;
+                document.getElementById('dash-clientes-recebidos').innerText = rc.total_clientes_recebidos;
+                document.getElementById('dash-recebido-mes').innerText = formatter.format(rc.recebido_este_mes);
+                document.getElementById('dash-qtd-recebida-mes').innerText = rc.qtd_recebida_este_mes;
+                document.getElementById('dash-recebido-prazo').innerText = formatter.format(rc.total_recebido_no_prazo);
+                document.getElementById('dash-recebido-atrasado').innerText = formatter.format(rc.total_recebido_atrasado);
+
+                // ── Donut Chart: A Receber / Recebidas ──
+                if (chart1) chart1.destroy();
+                const ctx1 = document.getElementById('chartStatus').getContext('2d');
+                chart1 = new Chart(ctx1, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Em Atraso', 'No Prazo', 'Recebido'],
+                        datasets: [{
+                            data: [ar.total_atrasado, ar.total_no_prazo, rc.total_recebido],
+                            backgroundColor: ['#ef4444', '#10b981', '#3b82f6'],
+                            borderWidth: 0,
+                            hoverOffset: 6
+                        }]
                     },
-                    plugins: { legend: { display: false } }
-                }
-            });
+                    options: { responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'bottom', labels: { color: '#cbd5e1', padding: 12, font: { size: 11 } } } },
+                        cutout: '68%' }
+                });
+
+                // ── Aging Bars ──
+                const ag = d.aging;
+                const agingItems = [
+                    { label: 'A Vencer', qtd: ag.a_vencer, val: ag.val_a_vencer, color: '#3b82f6' },
+                    { label: '1 – 30 dias', qtd: ag.ate_30d, val: ag.val_ate_30d, color: '#f59e0b' },
+                    { label: '31 – 60 dias', qtd: ag.de_31_60d, val: ag.val_de_31_60d, color: '#f97316' },
+                    { label: '61 – 90 dias', qtd: ag.de_61_90d, val: ag.val_de_61_90d, color: '#ef4444' },
+                    { label: '+ 90 dias', qtd: ag.acima_90d, val: ag.val_acima_90d, color: '#7c3aed' },
+                ];
+                const maxVal = Math.max(...agingItems.map(a => parseFloat(a.val || 0)), 1);
+                document.getElementById('dash-aging-bars').innerHTML = agingItems.map(a => {
+                    const pct = Math.max((parseFloat(a.val) / maxVal) * 100, 0).toFixed(1);
+                    return `
+                        <div style="margin-bottom:1rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem; font-size:0.8rem;">
+                                <span style="color:#cbd5e1;">${a.label}</span>
+                                <span style="color:${a.color}; font-weight:600;">${formatter.format(a.val)} <span style="color:var(--text-muted); font-weight:400;">(${a.qtd} notas)</span></span>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:8px; overflow:hidden;">
+                                <div style="height:100%; width:${pct}%; background:${a.color}; border-radius:4px; transition:width 0.6s ease;"></div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+                // ── Por Responsável: A Receber ──
+                const tbR = document.getElementById('dash-por-responsavel-receber');
+                tbR.innerHTML = d.por_responsavel_receber.map(r => {
+                    const isSem = r.responsavel === 'Sem Responsável';
+                    return `<tr style="border-bottom:1px solid var(--border-color);">
+                        <td style="padding:0.5rem 0; color:${isSem ? 'var(--warning)' : '#f1f5f9'};">
+                            ${isSem ? '<i class="ph ph-user-x" style="margin-right:4px;"></i>' : ''}${r.responsavel}
+                        </td>
+                        <td style="padding:0.5rem 0; text-align:right; color:var(--text-muted);">${r.qtd_notas}</td>
+                        <td style="padding:0.5rem 0; text-align:right; color:#f8fafc; font-weight:600;">${formatter.format(r.total_carteira)}</td>
+                    </tr>`;
+                }).join('');
+
+                // ── Por Responsável: Recebidas ──
+                const tbRec = document.getElementById('dash-por-responsavel-recebidas');
+                tbRec.innerHTML = d.por_responsavel_recebidas.map(r => {
+                    const isSem = r.responsavel === 'Sem Responsável';
+                    return `<tr style="border-bottom:1px solid var(--border-color);">
+                        <td style="padding:0.5rem 0; color:${isSem ? 'var(--warning)' : '#f1f5f9'};">
+                            ${isSem ? '<i class="ph ph-user-x" style="margin-right:4px;"></i>' : ''}${r.responsavel}
+                        </td>
+                        <td style="padding:0.5rem 0; text-align:right; color:var(--text-muted);">${r.qtd_notas}</td>
+                        <td style="padding:0.5rem 0; text-align:right; color:var(--success); font-weight:600;">${formatter.format(r.total_recebido)}</td>
+                    </tr>`;
+                }).join('');
+
+                // ── Top Devedores ──
+                const maxDevendo = Math.max(...d.top_devedores.map(x => parseFloat(x.total_devendo || 0)), 1);
+                document.getElementById('dash-top-devedores').innerHTML = d.top_devedores.map((dev, i) => {
+                    const pct = ((parseFloat(dev.total_devendo) / maxDevendo) * 100).toFixed(1);
+                    const colors = ['#ef4444','#f97316','#f59e0b','#3b82f6','#8b5cf6'];
+                    return `
+                        <div style="margin-bottom:1rem;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:0.3rem; font-size:0.82rem;">
+                                <span style="color:#f1f5f9;">${i+1}. ${dev.card_name.length > 40 ? dev.card_name.substring(0,40)+'…' : dev.card_name}</span>
+                                <span style="color:${colors[i]}; font-weight:600;">${formatter.format(dev.total_devendo)} <span style="color:var(--text-muted); font-weight:400;">(${dev.qtd_notas} notas)</span></span>
+                            </div>
+                            <div style="background:rgba(255,255,255,0.06); border-radius:4px; height:8px; overflow:hidden;">
+                                <div style="height:100%; width:${pct}%; background:${colors[i]}; border-radius:4px; transition:width 0.6s ease;"></div>
+                            </div>
+                        </div>`;
+                }).join('');
+
+            } catch (e) {
+                console.error('Erro ao carregar dashboard:', e);
+            }
         }
 
         async function loadClientes() {
@@ -1452,6 +2197,7 @@
                 const pagamentoFim = document.getElementById('filter-pagamento-fim').value;
                 const cliente = document.getElementById('filter-cliente').value;
                 const responsavel = document.getElementById('filter-responsavel').value;
+                const conta_razao = document.getElementById('filter-conta-razao').value;
                 const ordenacao = document.getElementById('filter-ordenacao').value;
 
                 if (status) qs.append('status', status);
@@ -1463,6 +2209,7 @@
                 if (pagamentoFim) qs.append('pagamento_fim', pagamentoFim);
                 if (cliente) qs.append('cliente', cliente);
                 if (responsavel) qs.append('responsavel', responsavel);
+                if (conta_razao) qs.append('conta_razao', conta_razao);
                 if (ordenacao) qs.append('ordenacao', ordenacao);
 
                 const isPago = currentViewMode === 'recebidas';
@@ -1535,8 +2282,6 @@
                 const hasFilters = status || vencimentoTipo || vencimentoInicio || vencimentoFim || pagamentoTipo || pagamentoInicio || pagamentoFim || cliente || responsavel;
                 if (!hasFilters) {
                     globalTotalClientes = data.length;
-                    globalDataCache = data;
-                    if (document.getElementById('dash-view').style.display === 'block') renderDashboard();
                 }
 
                 if (data.length === 0) grid.innerHTML = '<p style="color:var(--text-muted); padding: 2rem; text-align: center; width: 100%;">Nenhum cliente encontrado com este filtro.</p>';
@@ -1555,6 +2300,7 @@
 
         async function loadNotasCliente(cardCode, cardName, keepOpenDocEntry = null, isPopState = false, pago = null) {
             currentCardCode = cardCode;
+            currentCardName = cardName;
             const isPago = pago !== null ? pago : (currentViewMode === 'recebidas');
             document.getElementById('cliente-nome-title').innerText = cardName;
             document.getElementById('cliente-code-subtitle').innerText = cardCode;
@@ -1608,6 +2354,7 @@
                 document.getElementById('cli-sum-prazo-qtd') && (document.getElementById('cli-sum-prazo-qtd').innerText = `${r.qtd_no_prazo || 0} no prazo`);
                 document.getElementById('cli-sum-total').innerText = fmt(r.saldo_total);
                 document.getElementById('cli-sum-total2') && (document.getElementById('cli-sum-total2').innerText = fmt(r.saldo_total));
+                document.getElementById('cli-sum-qtd').innerText = r.qtd_notas || 0;
                 
                 // Se foi carregado via link com o nome provisório = card_code, ajusta o título real
                 if (r.card_name && document.getElementById('cliente-nome-title').innerText === cardCode) {
@@ -1641,6 +2388,7 @@
             try {
                 const res = await fetch(`${API_BASE}/clientes/${cardCode}/notas?${qs.toString()}`);
                 const notas = await res.json();
+                window.notasAtuais = notas;
                 list.innerHTML = '';
 
                 if (notas.length === 0) {
@@ -1697,12 +2445,21 @@
                         <div class="nota-col nota-col-date ${days > 0 && !isPago ? '' : 'text-success'}" style="${days > 0 && !isPago ? 'color:var(--danger); font-weight:600;' : 'color:#cbd5e1;'}">${dtVenc}</div>
                         <div class="nota-col" style="color:#cbd5e1;">${contaRazaoText}</div>
                         <div class="nota-col" style="color:#cbd5e1;">${bancoText}</div>
+                        <div class="nota-col" onclick="event.stopPropagation();" style="padding-right: 0.5rem;">
+                            <select class="form-control" style="font-size:0.75rem; padding:0.2rem; height:28px; background:rgba(255,255,255,0.05); color:#f1f5f9; border-color:transparent;" onchange="updateNotaResponsavel(${nota.doc_entry}, this.value)">
+                                <option value="" ${!nota.responsavel ? 'selected' : ''}>--</option>
+                                ${window.allUsers.map(u => `<option value="${u}" ${u === nota.responsavel ? 'selected' : ''}>${u}</option>`).join('')}
+                            </select>
+                        </div>
                         ${dynamicCol}
                         <div class="nota-col" style="text-align:center;">${atrasoHtml}</div>
                         <div class="nota-col nota-col-currency" style="color:#94a3b8;">${formatter.format(valorTotal)}</div>
                         <div class="nota-col nota-col-currency" style="color:#f8fafc; font-weight:700;">${formatter.format(nota.saldo_pendente)}</div>
-                        <div class="nota-col nota-col-status" style="color:${statusColor};">
+                        <div class="nota-col nota-col-status" style="color:${statusColor}; display:flex; align-items:center; justify-content:flex-end; gap:0.5rem;">
                             <span style="background:${bgStatusColor}; border-radius:4px; padding:0.2rem 0.5rem;">${nota.status_cobranca || 'Pendente'}</span>
+                            <button class="nota-edit-btn" title="Editar nota" onclick="event.stopPropagation(); openEditModal(${JSON.stringify(nota).replace(/"/g, '&quot;')})">
+                                <i class="ph ph-pencil-simple" style="font-size:0.9rem;"></i>
+                            </button>
                         </div>`;
                     list.appendChild(row);
                 });
@@ -1742,6 +2499,74 @@
             document.getElementById('detail-panel').classList.remove('open');
             document.querySelectorAll('.nota-row').forEach(r => r.classList.remove('active'));
             currentDocEntry = null;
+        }
+
+        // ─── Modal de Edição de Nota ───
+        let editingDocEntry = null;
+
+        function openEditModal(nota) {
+            editingDocEntry = nota.doc_entry;
+            document.getElementById('edit-modal-title').innerText = `Doc ${nota.numero_documento} · NFS-e ${nota.nfse || '--'}`;
+            
+            document.getElementById('edit-nfse').value = nota.nfse || '';
+            document.getElementById('edit-emissao').value = nota.data_emissao ? nota.data_emissao.split('T')[0] : '';
+            document.getElementById('edit-vencimento').value = nota.data_vencimento ? nota.data_vencimento.split('T')[0] : '';
+            document.getElementById('edit-conta-cod').value = nota.conta_razao_codigo || '';
+            document.getElementById('edit-conta-nome').value = nota.conta_razao_nome || '';
+            document.getElementById('edit-banco').value = nota.banco || '';
+            
+            const vTotalInput = document.getElementById('edit-valor-total');
+            vTotalInput.value = (nota.valor_total || 0).toFixed(2).replace('.', ',');
+            maskCurrency(vTotalInput);
+
+            const vSaldoInput = document.getElementById('edit-saldo');
+            vSaldoInput.value = (nota.saldo_pendente || 0).toFixed(2).replace('.', ',');
+            maskCurrency(vSaldoInput);
+            
+            document.getElementById('edit-status').value = nota.status_cobranca || 'Pendente';
+            
+            document.getElementById('edit-modal-overlay').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal-overlay').classList.remove('active');
+            editingDocEntry = null;
+        }
+
+        async function saveEditNota() {
+            if (!editingDocEntry) return;
+            const btn = document.getElementById('edit-save-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-circle-notch" style="animation:spin 1s linear infinite;"></i> Salvando...';
+
+            const body = {
+                nfse: document.getElementById('edit-nfse').value || null,
+                data_emissao: document.getElementById('edit-emissao').value || null,
+                data_vencimento: document.getElementById('edit-vencimento').value || null,
+                conta_razao_codigo: document.getElementById('edit-conta-cod').value || null,
+                conta_razao_nome: document.getElementById('edit-conta-nome').value || null,
+                banco: document.getElementById('edit-banco').value || null,
+                valor_total: currencyToFloat(document.getElementById('edit-valor-total').value),
+                saldo_pendente: currencyToFloat(document.getElementById('edit-saldo').value),
+                status_cobranca: document.getElementById('edit-status').value,
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/notas/${editingDocEntry}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error(await res.text());
+                closeEditModal();
+                // Recarrega mantendo a nota selecionada aberta
+                await loadNotasCliente(currentCardCode, currentCardName, editingDocEntry);
+            } catch (e) {
+                alert('Erro ao salvar: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-check"></i> Salvar';
+            }
         }
 
         async function salvarObservacaoCliente() {
@@ -1833,6 +2658,48 @@
                 btn.disabled = false;
                 alert('Erro ao salvar o histórico.');
             }
+        }
+
+        function exportarNotas() {
+            if (!window.notasAtuais || window.notasAtuais.length === 0) {
+                alert('Nenhuma nota para exportar.');
+                return;
+            }
+
+            const header = [
+                'NFse', 'Documento', 'Emissao', 'Vencimento', 'Valor Total', 'Saldo Pendente', 
+                'Status', 'Data Pagamento', 'Banco', 'Conta Razao', 'Responsavel'
+            ];
+            
+            const rows = window.notasAtuais.map(n => [
+                n.nfse || '',
+                n.numero_documento || '',
+                n.data_emissao ? n.data_emissao.split('T')[0] : '',
+                n.data_vencimento ? n.data_vencimento.split('T')[0] : '',
+                n.valor_total || 0,
+                n.saldo_pendente || 0,
+                n.status_cobranca || '',
+                n.data_pagamento ? n.data_pagamento.split('T')[0] : '',
+                n.banco || '',
+                n.conta_razao_codigo ? `${n.conta_razao_codigo} - ${n.conta_razao_nome || ''}` : '',
+                n.responsavel || ''
+            ]);
+
+            const csvContent = [
+                header.join(';'),
+                ...rows.map(r => r.map(val => `"${String(val).replace(/"/g, '""')}"`).join(';'))
+            ].join('\n');
+
+            const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            const dataStr = new Date().toISOString().split('T')[0];
+            link.setAttribute('href', url);
+            link.setAttribute('download', `Notas_${currentCardCode}_${dataStr}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
         }
     </script>
 </body>

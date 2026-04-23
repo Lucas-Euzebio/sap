@@ -98,6 +98,18 @@ def setup_database():
         cursor.execute(create_historico_query)
         conn.commit()
         print("✅ Tabela 'historico_cobranca' criada/verificada com sucesso!")
+
+        create_usuarios_query = """
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id SERIAL PRIMARY KEY,
+            username VARCHAR(100) UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        """
+        cursor.execute(create_usuarios_query)
+        conn.commit()
+        print("✅ Tabela 'usuarios' criada/verificada com sucesso!")
         
         cursor.close()
         conn.close()

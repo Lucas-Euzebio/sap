@@ -2,16 +2,23 @@ import os
 import sys
 import json
 import requests
+import argparse
+from pathlib import Path
 from dotenv import load_dotenv
+
+# Adiciona a raiz do projeto ao sys.path para permitir imports do módulo 'app'
+root_path = str(Path(__file__).resolve().parent.parent.parent)
+if root_path not in sys.path:
+    sys.path.append(root_path)
+
 from app.sap import login_sap
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-def dump_incoming_payment(doc_entry_invoice=None):
+def dump_incoming_payment(doc_num_pag=None, doc_num_inv=None):
     """
     Busca pagamentos no endpoint IncomingPayments e faz o dump completo.
-    Se doc_entry_invoice for informado, filtra apenas os pagamentos que referenciam aquela nota.
     """
     session_id = login_sap()
     if not session_id:
@@ -24,30 +31,89 @@ def dump_incoming_payment(doc_entry_invoice=None):
 
     endpoint = f"{sap_url}/b1s/v1/IncomingPayments"
 
-    params = {
-        "$filter": "Cancelled eq 'tNO'",
-        "$orderby": "DocNum desc",
-    }
-    headers = {"Prefer": "odata.maxpagesize=50"}
+    filters = ["Cancelled eq 'tNO'"]
+    if doc_num_pag:
+        filters.append(f"DocNum eq {doc_num_pag}")
+    
+    # Se o filtro for por Nota Fiscal, primeiro precisamos achar o DocEntry dela se o usuário passou DocNum
+    # Mas para simplificar, se for doc_num_inv, vamos buscar todos os pagamentos e filtrar localmente no loop 
+    # ou fazer uma sub-query se o SAP permitisse. Vamos filtrar localmente para ser mais robusto.
 
-    print(f"🔄 Buscando IncomingPayments (últimos 50 não cancelados)...")
+    # Se o filtro for por Número de Invoice, buscamos ela e tentamos achar o ReceiptNum (Link direto)
+    target_doc_entry_inv = None
+    if doc_num_inv:
+        print(f"🔍 Localizando a Invoice #{doc_num_inv} no SAP...")
+        # --num-inv representa o número visível na tela do SAP (SequenceSerial), NÃO o DocNum interno
+        filter_str = f"SequenceSerial eq {doc_num_inv}"
+        print(f"📡 Filtro enviado: {filter_str}")
+        
+        res_inv = requests.get(
+            f"{sap_url}/b1s/v1/Invoices", 
+            cookies=cookies, 
+            params={"$filter": filter_str}, # Removido $select para evitar o erro de propriedade inválida
+            verify=False
+        )
+        
+        if res_inv.status_code == 200:
+            value = res_inv.json().get("value", [])
+            if value:
+                inv_data = value[0]
+                target_doc_entry_inv = inv_data["DocEntry"]
+                receipt_num = inv_data.get("ReceiptNum")
+                
+                print(f"🎯 Invoice localizada! DocEntry: {target_doc_entry_inv} | DocNum: {inv_data.get('DocNum')} | Num: {inv_data.get('SequenceSerial')}")
+                
+                if receipt_num and receipt_num > 0:
+                    print(f"🔗 Nota vinculada ao Recibo (IncomingPayment) DocEntry: {receipt_num}")
+                    endpoint = f"{sap_url}/b1s/v1/IncomingPayments({receipt_num})"
+                    filters = [] 
+                    params = {}
+                else:
+                    card_code = inv_data.get("CardCode")
+                    if card_code:
+                        print(f"⚠️  Sem ReceiptNum direto. Filtrando pagamentos do cliente {card_code}...")
+                        filters.append(f"CardCode eq '{card_code}'")
+                    else:
+                        print("⚠️  Sem ReceiptNum e sem CardCode. A busca pode ser lenta (varredura ampla).")
+            else:
+                print(f"⚠️  Invoice {doc_num_inv} não encontrada nos resultados do SAP.")
+                return
+        else:
+            print(f"❌ Erro na busca da Invoice: {res_inv.status_code} - {res_inv.text}")
+            return
+
+    if filters:
+        params = {
+            "$filter": " and ".join(filters),
+            "$orderby": "DocNum desc",
+        }
+    
+    headers = {"Prefer": "odata.maxpagesize=500"}
+
+    print(f"🔄 Consultando SAP...")
     res = requests.get(endpoint, cookies=cookies, params=params, headers=headers, verify=False)
 
     if res.status_code != 200:
         print(f"❌ Erro: {res.status_code} - {res.text}")
         return
 
-    pagamentos = res.json().get("value", [])
-    print(f"✅ {len(pagamentos)} pagamentos encontrados.\n")
+    data = res.json()
+    if "value" in data:
+        pagamentos = data.get("value", [])
+    else:
+        # Se fomos direto pelo ID (IncomingPayments(ID)), ele retorna o objeto direto, não uma lista
+        pagamentos = [data]
+
+    print(f"✅ {len(pagamentos)} registro(s) carregado(s). Iniciando processamento...\n")
 
     resultados = []
     encontrou = False
+
     for pg in pagamentos:
         invoices = pg.get("PaymentInvoices", [])
 
-        # Se filtro de DocEntry foi passado, só mostra pagamentos que referenciam essa nota
-        if doc_entry_invoice:
-            match = any(inv.get("DocEntry") == int(doc_entry_invoice) for inv in invoices)
+        if target_doc_entry_inv:
+            match = any(inv.get("DocEntry") == target_doc_entry_inv for inv in invoices)
             if not match:
                 continue
 
@@ -59,7 +125,7 @@ def dump_incoming_payment(doc_entry_invoice=None):
         print(f"📅 Data Pagamento: {pg.get('DocDate')}")
         print()
 
-        print("=== DUMP COMPLETO DOS CAMPOS (exceto sub-coleções) ===")
+        print("=== DUMP COMPLETO DOS CAMPOS (só preenchidos) ===")
         for k, v in pg.items():
             if not isinstance(v, (list, dict)):
                 if v is not None and v != 0 and v != "" and v != "tNO":
@@ -80,20 +146,20 @@ def dump_incoming_payment(doc_entry_invoice=None):
         print()
 
     if not encontrou:
-        if doc_entry_invoice:
-            print(f"⚠️  Nenhum IncomingPayment encontrado referenciando o DocEntry {doc_entry_invoice}.")
-            print("    A nota pode ainda não ter sido paga, ou o pagamento foi cancelado.")
-        else:
-            print("Nenhum pagamento encontrado.")
+        print("Nenhum pagamento encontrado com os critérios informados.")
     else:
+        os.makedirs("dumps", exist_ok=True)
         output_file = "dumps/sap_incoming_dump.json"
         with open(output_file, "w", encoding="utf-8") as f:
             json.dump(resultados, f, indent=4, ensure_ascii=False)
-        print(f"\n💾 Dump salvo em: {output_file}  ({len(resultados)} pagamento(s))")
+        print(f"\n💾 Dump salvo em: {output_file} ({len(resultados)} pagamento(s))")
 
 
 if __name__ == "__main__":
-    entry = sys.argv[1] if len(sys.argv) > 1 else None
-    if entry:
-        print(f"🔍 Filtrando pagamentos que referenciam a nota DocEntry: {entry}\n")
-    dump_incoming_payment(entry)
+    parser = argparse.ArgumentParser(description="Inspeciona campos brutos de um Recebimento (Incoming Payment) no SAP")
+    parser.add_argument("--doc-num-pag", type=int, help="Número do Pagamento (DocNum) no SAP")
+    parser.add_argument("--doc-num-inv", type=int, help="Número Interno da Fatura (DocNum) SAP")
+    parser.add_argument("--num-inv", type=int, help="Número que aparece na tela da Fatura (SequenceSerial)")
+    
+    args = parser.parse_args()
+    dump_incoming_payment(doc_num_pag=args.doc_num_pag, doc_num_inv=args.doc_num_inv or args.num_inv)

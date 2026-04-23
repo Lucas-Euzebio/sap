@@ -132,26 +132,35 @@ python scripts/tools/get_contas_recebidas.py --card-name "Raizen" --doc-date "20
 
 #### 5.3 Inspecionar campos de uma Invoice (Nota Fiscal)
 
+Estes scripts agora podem ser rodados diretamente da raiz do projeto.
+
 ```bash
-# Sem argumentos: busca a primeira nota aberta e salva em dumps/sap_fields_dump.json
+# Sem argumentos: busca a última nota em aberto
 python scripts/tools/print_invoice_fields.py
 
-# Com DocEntry específico: busca aquela nota exata
-# Variável: DocEntry (ID interno da nota no SAP, obtido via get_contas_receber.py)
-python scripts/tools/print_invoice_fields.py 542
+# Filtrar pelo Número que aparece na tela do SAP (SequenceSerial) - MAIS COMUM
+python scripts/tools/print_invoice_fields.py --num 15373
 
-# Outputs: dumps/sap_fields_dump.json com todos os campos disponíveis
+# Filtrar pelo DocNum (Número interno SAP)
+python scripts/tools/print_invoice_fields.py --doc-num 12345
+
+# Filtrar pelo DocEntry (ID interno do SAP)
+python scripts/tools/print_invoice_fields.py --doc-entry 542
+
+# Outputs: dumps/sap_fields_dump.json com todos os campos brutos do SAP
 ```
 
 #### 5.4 Inspecionar campos de um Pagamento (IncomingPayment)
 
 ```bash
-# Sem argumentos: lista os últimos 50 pagamentos não-cancelados
+# Sem argumentos: lista os últimos 50 pagamentos
 python scripts/tools/print_incoming_payment_fields.py
 
-# Com DocEntry de uma Invoice: mostra apenas os pagamentos que baixaram aquela nota
-# Variável: DocEntry (ID interno da nota no SAP que foi paga)
-python scripts/tools/print_incoming_payment_fields.py 542
+# Filtrar pelo Número da Fatura que aparece na tela (SequenceSerial)
+python scripts/tools/print_incoming_payment_fields.py --num-inv 15373
+
+# Filtrar pelo Número do Pagamento (DocNum do SAP)
+python scripts/tools/print_incoming_payment_fields.py --doc-num-pag 9876
 
 # Outputs: dumps/sap_incoming_dump.json com todos os pagamentos encontrados
 ```
@@ -166,7 +175,7 @@ python sync_banco.py
 
 # Sincronizar apenas notas criadas a partir de uma data
 # Variável: --since-date (formato YYYY-MM-DD)
-python sync_banco.py --since-date "2024-01-01"
+python sync_banco.py --since-date "2025-01-01"
 ```
 
 Importa todas as notas fiscais abertas do SAP para a tabela `notas_cobranca`.
@@ -179,7 +188,7 @@ python sync_recebidas.py
 
 # Sincronizar apenas pagamentos recebidos a partir de uma data
 # Variável: --since-date (formato YYYY-MM-DD)
-python sync_recebidas.py --since-date "2024-01-01"
+python sync_recebidas.py --since-date "2025-01-01"
 ```
 
 Atualiza notas marcando como "Pagamento Confirmado" quando um pagamento é detectado no SAP.

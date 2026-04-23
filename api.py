@@ -1,5 +1,8 @@
-from typing import Optional
-from fastapi import FastAPI, HTTPException
+import os
+import datetime
+import jwt
+from typing import Optional, List
+from fastapi import FastAPI, HTTPException, Query, Body
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import psycopg2
@@ -8,6 +11,10 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from app.db import get_db_connection
 from app.sync import sync_invoices, sync_recebidas
+
+# Configuração JWT
+SECRET_KEY = "zeus_agro_secret_key"
+ALGORITHM = "HS256"
 
 app = FastAPI(title="Zeus Agrotech - Cobranças")
 
@@ -25,6 +32,222 @@ class ObservacaoCliente(BaseModel):
     observacao: str
     atualizado_por: Optional[str] = None
 
+class NotaUpdate(BaseModel):
+    nfse: Optional[str] = None
+    data_emissao: Optional[str] = None
+    data_vencimento: Optional[str] = None
+    conta_razao_codigo: Optional[str] = None
+    conta_razao_nome: Optional[str] = None
+    banco: Optional[str] = None
+    valor_total: Optional[float] = None
+    saldo_pendente: Optional[float] = None
+    status_cobranca: Optional[str] = None
+    responsavel: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+def get_date_cond(col_name, type_val, start, end):
+    if not type_val: return None, []
+    p = []
+    cond = ""
+    if type_val == "semana_passada":
+        cond = f"{col_name} >= date_trunc('week', CURRENT_DATE - INTERVAL '1 week') AND {col_name} < date_trunc('week', CURRENT_DATE)"
+    elif type_val == "esta_semana":
+        cond = f"{col_name} >= date_trunc('week', CURRENT_DATE) AND {col_name} < date_trunc('week', CURRENT_DATE + INTERVAL '1 week')"
+    elif type_val == "proxima_semana":
+        cond = f"{col_name} >= date_trunc('week', CURRENT_DATE + INTERVAL '1 week') AND {col_name} < date_trunc('week', CURRENT_DATE + INTERVAL '2 weeks')"
+    elif type_val == "mes_passado":
+        cond = f"{col_name} >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND {col_name} < date_trunc('month', CURRENT_DATE)"
+    elif type_val == "este_mes":
+        cond = f"{col_name} >= date_trunc('month', CURRENT_DATE) AND {col_name} < date_trunc('month', CURRENT_DATE + INTERVAL '1 month')"
+    elif type_val == "proximo_mes":
+        cond = f"{col_name} >= date_trunc('month', CURRENT_DATE + INTERVAL '1 month') AND {col_name} < date_trunc('month', CURRENT_DATE + INTERVAL '2 months')"
+    elif type_val == "ano_passado":
+        cond = f"{col_name} >= date_trunc('year', CURRENT_DATE - INTERVAL '1 year') AND {col_name} < date_trunc('year', CURRENT_DATE)"
+    elif type_val == "este_ano":
+        cond = f"{col_name} >= date_trunc('year', CURRENT_DATE) AND {col_name} < date_trunc('year', CURRENT_DATE + INTERVAL '1 year')"
+    elif type_val == "proximo_ano":
+        cond = f"{col_name} >= date_trunc('year', CURRENT_DATE + INTERVAL '1 year') AND {col_name} < date_trunc('year', CURRENT_DATE + INTERVAL '2 years')"
+    elif type_val == "periodo" and (start or end):
+        cs = []
+        if start:
+            cs.append(f"{col_name} >= %s")
+            p.append(start)
+        if end:
+            cs.append(f"{col_name} <= %s")
+            p.append(end)
+        if cs:
+            cond = " AND ".join(cs)
+    return cond or None, p
+
+def build_filters(vencimento=None, vencimento_inicio=None, vencimento_fim=None, cliente=None, responsavel=None, pagamento=None, pagamento_inicio=None, pagamento_fim=None, emissao=None, emissao_inicio=None, emissao_fim=None):
+    clauses = ["1=1"]
+    params = []
+    
+    if cliente:
+        clauses.append("(card_name ILIKE %s OR card_code ILIKE %s OR nfse ILIKE %s OR numero_documento ILIKE %s)")
+        params.extend([f"%{cliente}%", f"%{cliente}%", f"%{cliente}%", f"%{cliente}%"])
+    if responsavel:
+        if responsavel == "sem_responsavel":
+            clauses.append("(responsavel IS NULL OR responsavel = '')")
+        else:
+            clauses.append("responsavel ILIKE %s")
+            params.append(f"%{responsavel}%")
+        
+    v_cond, v_params = get_date_cond("data_vencimento", vencimento, vencimento_inicio, vencimento_fim)
+    if v_cond:
+        clauses.append(f"({v_cond})")
+        params.extend(v_params)
+
+    p_cond, p_params = get_date_cond("data_pagamento", pagamento, pagamento_inicio, pagamento_fim)
+    if p_cond:
+        clauses.append(f"({p_cond})")
+        params.extend(p_params)
+
+    e_cond, e_params = get_date_cond("data_emissao", emissao, emissao_inicio, emissao_fim)
+    if e_cond:
+        clauses.append(f"({e_cond})")
+        params.extend(e_params)
+        
+    return clauses, params
+
+
+@app.get("/api/dashboard")
+def get_dashboard_metrics(
+    vencimento: Optional[str] = None,
+    vencimento_inicio: Optional[str] = None,
+    vencimento_fim: Optional[str] = None,
+    cliente: Optional[str] = None,
+    responsavel: Optional[str] = None,
+    pagamento: Optional[str] = None,
+    pagamento_inicio: Optional[str] = None,
+    pagamento_fim: Optional[str] = None,
+    emissao: Optional[str] = None,
+    emissao_inicio: Optional[str] = None,
+    emissao_fim: Optional[str] = None
+):
+    """Retorna KPIs consolidados do painel principal respeitando filtros."""
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    shared_clauses, shared_params = build_filters(
+        vencimento, vencimento_inicio, vencimento_fim, 
+        cliente, responsavel,
+        pagamento, pagamento_inicio, pagamento_fim,
+        emissao, emissao_inicio, emissao_fim
+    )
+    where_shared = " AND ".join(shared_clauses)
+
+    # --- KPIs de Contas a Receber (pendentes) ---
+    cursor.execute(f"""
+        SELECT
+            COUNT(*) as total_notas_abertas,
+            COUNT(DISTINCT card_code) as total_clientes_abertos,
+            COALESCE(SUM(saldo_pendente), 0) as total_a_receber,
+            COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE THEN saldo_pendente ELSE 0 END), 0) as total_atrasado,
+            COALESCE(SUM(CASE WHEN data_vencimento >= CURRENT_DATE THEN saldo_pendente ELSE 0 END), 0) as total_no_prazo,
+            COUNT(CASE WHEN data_vencimento < CURRENT_DATE THEN 1 END) as qtd_notas_atrasadas,
+            COUNT(CASE WHEN data_vencimento >= CURRENT_DATE THEN 1 END) as qtd_notas_no_prazo,
+            COUNT(CASE WHEN responsavel IS NULL OR responsavel = '' THEN 1 END) as qtd_sem_responsavel,
+            COUNT(CASE WHEN responsavel IS NOT NULL AND responsavel != '' THEN 1 END) as qtd_com_responsavel
+        FROM notas_cobranca
+        WHERE saldo_pendente > 0 AND {where_shared}
+    """, shared_params)
+    a_receber = cursor.fetchone()
+
+    # --- KPIs de Contas Recebidas ---
+    cursor.execute(f"""
+        SELECT
+            COUNT(*) as total_notas_recebidas,
+            COUNT(DISTINCT card_code) as total_clientes_recebidos,
+            COALESCE(SUM(valor_total), 0) as total_recebido,
+            COALESCE(SUM(CASE WHEN data_pagamento > data_vencimento THEN valor_total ELSE 0 END), 0) as total_recebido_atrasado,
+            COALESCE(SUM(CASE WHEN data_pagamento <= data_vencimento THEN valor_total ELSE 0 END), 0) as total_recebido_no_prazo,
+            COALESCE(SUM(CASE WHEN EXTRACT(MONTH FROM data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                               AND EXTRACT(YEAR FROM data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                          THEN valor_total ELSE 0 END), 0) as recebido_este_mes,
+            COUNT(CASE WHEN EXTRACT(MONTH FROM data_pagamento) = EXTRACT(MONTH FROM CURRENT_DATE)
+                        AND EXTRACT(YEAR FROM data_pagamento) = EXTRACT(YEAR FROM CURRENT_DATE)
+                   THEN 1 END) as qtd_recebida_este_mes,
+            COUNT(CASE WHEN responsavel IS NULL OR responsavel = '' THEN 1 END) as qtd_recebidas_sem_responsavel,
+            COUNT(CASE WHEN responsavel IS NOT NULL AND responsavel != '' THEN 1 END) as qtd_recebidas_com_responsavel
+        FROM notas_cobranca
+        WHERE data_pagamento IS NOT NULL AND {where_shared}
+    """, shared_params)
+    recebidas = cursor.fetchone()
+
+    # --- Por Responsável: A Receber ---
+    cursor.execute(f"""
+        SELECT
+            COALESCE(responsavel, 'Sem Responsável') as responsavel,
+            COUNT(*) as qtd_notas,
+            COUNT(DISTINCT card_code) as qtd_clientes,
+            COALESCE(SUM(saldo_pendente), 0) as total_carteira
+        FROM notas_cobranca
+        WHERE saldo_pendente > 0 AND {where_shared}
+        GROUP BY COALESCE(responsavel, 'Sem Responsável')
+        ORDER BY total_carteira DESC
+        LIMIT 10
+    """, shared_params)
+    por_responsavel_receber = cursor.fetchall()
+
+    # --- Por Responsável: Recebidas ---
+    cursor.execute(f"""
+        SELECT
+            COALESCE(responsavel, 'Sem Responsável') as responsavel,
+            COUNT(*) as qtd_notas,
+            COALESCE(SUM(valor_total), 0) as total_recebido
+        FROM notas_cobranca
+        WHERE data_pagamento IS NOT NULL AND {where_shared}
+        GROUP BY COALESCE(responsavel, 'Sem Responsável')
+        ORDER BY total_recebido DESC
+        LIMIT 10
+    """, shared_params)
+    por_responsavel_recebidas = cursor.fetchall()
+
+    # --- Aging: Vencimentos em buckets ---
+    cursor.execute(f"""
+        SELECT
+            COUNT(CASE WHEN data_vencimento >= CURRENT_DATE THEN 1 END) as a_vencer,
+            COUNT(CASE WHEN data_vencimento < CURRENT_DATE AND data_vencimento >= CURRENT_DATE - 30 THEN 1 END) as ate_30d,
+            COUNT(CASE WHEN data_vencimento < CURRENT_DATE - 30 AND data_vencimento >= CURRENT_DATE - 60 THEN 1 END) as de_31_60d,
+            COUNT(CASE WHEN data_vencimento < CURRENT_DATE - 60 AND data_vencimento >= CURRENT_DATE - 90 THEN 1 END) as de_61_90d,
+            COUNT(CASE WHEN data_vencimento < CURRENT_DATE - 90 THEN 1 END) as acima_90d,
+            COALESCE(SUM(CASE WHEN data_vencimento >= CURRENT_DATE THEN saldo_pendente ELSE 0 END), 0) as val_a_vencer,
+            COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE AND data_vencimento >= CURRENT_DATE - 30 THEN saldo_pendente ELSE 0 END), 0) as val_ate_30d,
+            COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE - 30 AND data_vencimento >= CURRENT_DATE - 60 THEN saldo_pendente ELSE 0 END), 0) as val_de_31_60d,
+            COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE - 60 AND data_vencimento >= CURRENT_DATE - 90 THEN saldo_pendente ELSE 0 END), 0) as val_de_61_90d,
+            COALESCE(SUM(CASE WHEN data_vencimento < CURRENT_DATE - 90 THEN saldo_pendente ELSE 0 END), 0) as val_acima_90d
+        FROM notas_cobranca
+        WHERE saldo_pendente > 0 AND {where_shared}
+    """, shared_params)
+    aging = cursor.fetchone()
+
+    # --- Top 5 maiores devedores ---
+    cursor.execute(f"""
+        SELECT card_code, card_name, SUM(saldo_pendente) as total_devendo, COUNT(*) as qtd_notas
+        FROM notas_cobranca
+        WHERE saldo_pendente > 0 AND {where_shared}
+        GROUP BY card_code, card_name
+        ORDER BY total_devendo DESC
+        LIMIT 5
+    """, shared_params)
+    top_devedores = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return {
+        "a_receber": a_receber,
+        "recebidas": recebidas,
+        "por_responsavel_receber": por_responsavel_receber,
+        "por_responsavel_recebidas": por_responsavel_recebidas,
+        "aging": aging,
+        "top_devedores": top_devedores,
+    }
+
 
 @app.get("/api/clientes")
 def get_clientes(
@@ -38,7 +261,8 @@ def get_clientes(
     pago: bool = False,
     pagamento: Optional[str] = None,
     pagamento_inicio: Optional[str] = None,
-    pagamento_fim: Optional[str] = None
+    pagamento_fim: Optional[str] = None,
+    conta_razao: Optional[str] = None
 ):
     """Retorna os clientes agrupados pelo total do saldo devedor e contagem de notas, aplicando filtros e ordenação"""
     conn = get_db()
@@ -53,45 +277,14 @@ def get_clientes(
         where_clauses.append("saldo_pendente > 0")
     
     if cliente:
-        where_clauses.append("(card_name ILIKE %s OR card_code ILIKE %s)")
-        params.extend([f"%{cliente}%", f"%{cliente}%"])
+        where_clauses.append("(card_name ILIKE %s OR card_code ILIKE %s OR nfse ILIKE %s OR numero_documento ILIKE %s)")
+        params.extend([f"%{cliente}%", f"%{cliente}%", f"%{cliente}%", f"%{cliente}%"])
     if responsavel:
-        where_clauses.append("responsavel ILIKE %s")
-        params.append(f"%{responsavel}%")
-
-    def get_date_cond(col_name, type_val, start, end):
-        if not type_val: return None, []
-        p = []
-        cond = ""
-        if type_val == "semana_passada":
-            cond = f"{col_name} >= date_trunc('week', CURRENT_DATE - INTERVAL '1 week') AND {col_name} < date_trunc('week', CURRENT_DATE)"
-        elif type_val == "esta_semana":
-            cond = f"{col_name} >= date_trunc('week', CURRENT_DATE) AND {col_name} < date_trunc('week', CURRENT_DATE + INTERVAL '1 week')"
-        elif type_val == "proxima_semana":
-            cond = f"{col_name} >= date_trunc('week', CURRENT_DATE + INTERVAL '1 week') AND {col_name} < date_trunc('week', CURRENT_DATE + INTERVAL '2 weeks')"
-        elif type_val == "mes_passado":
-            cond = f"{col_name} >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND {col_name} < date_trunc('month', CURRENT_DATE)"
-        elif type_val == "este_mes":
-            cond = f"{col_name} >= date_trunc('month', CURRENT_DATE) AND {col_name} < date_trunc('month', CURRENT_DATE + INTERVAL '1 month')"
-        elif type_val == "proximo_mes":
-            cond = f"{col_name} >= date_trunc('month', CURRENT_DATE + INTERVAL '1 month') AND {col_name} < date_trunc('month', CURRENT_DATE + INTERVAL '2 months')"
-        elif type_val == "ano_passado":
-            cond = f"{col_name} >= date_trunc('year', CURRENT_DATE - INTERVAL '1 year') AND {col_name} < date_trunc('year', CURRENT_DATE)"
-        elif type_val == "este_ano":
-            cond = f"{col_name} >= date_trunc('year', CURRENT_DATE) AND {col_name} < date_trunc('year', CURRENT_DATE + INTERVAL '1 year')"
-        elif type_val == "proximo_ano":
-            cond = f"{col_name} >= date_trunc('year', CURRENT_DATE + INTERVAL '1 year') AND {col_name} < date_trunc('year', CURRENT_DATE + INTERVAL '2 years')"
-        elif type_val == "periodo" and (start or end):
-            cs = []
-            if start:
-                cs.append(f"{col_name} >= %s")
-                p.append(start)
-            if end:
-                cs.append(f"{col_name} <= %s")
-                p.append(end)
-            if cs:
-                cond = " AND ".join(cs)
-        return cond or None, p
+        if responsavel == "sem_responsavel":
+            where_clauses.append("(responsavel IS NULL OR responsavel = '')")
+        else:
+            where_clauses.append("responsavel ILIKE %s")
+            params.append(f"%{responsavel}%")
 
     v_cond, v_params = get_date_cond("data_vencimento", vencimento, vencimento_inicio, vencimento_fim)
     if v_cond:
@@ -102,6 +295,15 @@ def get_clientes(
     if p_cond:
         where_clauses.append(f"({p_cond})")
         params.extend(p_params)
+
+    if status:
+        where_clauses.append("status_cobranca = %s")
+        params.append(status)
+    if conta_razao:
+        where_clauses.append("conta_razao_codigo = %s")
+        params.append(conta_razao)
+
+    where_sql = " AND ".join(where_clauses)
 
     query = f"""
         SELECT card_code, card_name, 
@@ -370,13 +572,13 @@ def add_historico(doc_entry: int, historico: HistoricoCreate):
         cursor.execute(query, (doc_entry, historico.responsavel, historico.acao, historico.observacao, historico.data_promessa or None))
         novo_registro = cursor.fetchone()
         
-        # Atualiza a nota principal com o novo responsavel e status se houver promessa
-        update_query = "UPDATE notas_cobranca SET responsavel = %s, observacoes = %s WHERE doc_entry = %s"
-        cursor.execute(update_query, (historico.responsavel, historico.observacao, doc_entry))
+        # Atualiza a nota principal com o novo responsavel, status (acao) e observacoes
+        update_query = "UPDATE notas_cobranca SET responsavel = %s, status_cobranca = %s, observacoes = %s WHERE doc_entry = %s"
+        cursor.execute(update_query, (historico.responsavel, historico.acao, historico.observacao, doc_entry))
         
         if historico.data_promessa:
-            cursor.execute("UPDATE notas_cobranca SET status_cobranca = %s, data_promessa = %s WHERE doc_entry = %s",
-                           ('Promessa de Pagamento', historico.data_promessa, doc_entry))
+            cursor.execute("UPDATE notas_cobranca SET data_promessa = %s WHERE doc_entry = %s",
+                           (historico.data_promessa, doc_entry))
         
         conn.commit()
     except Exception as e:
@@ -387,6 +589,39 @@ def add_historico(doc_entry: int, historico: HistoricoCreate):
         conn.close()
         
     return novo_registro
+
+@app.put("/api/notas/{doc_entry}")
+def update_nota(doc_entry: int, body: NotaUpdate):
+    """Atualiza campos financeiros e de identificação de uma nota."""
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    # Pega apenas os campos que foram enviados no JSON
+    fields = body.model_dump(exclude_unset=True)
+    
+    if not fields:
+        raise HTTPException(status_code=400, detail="Nenhum campo para atualizar.")
+
+    set_clause = ", ".join([f"{k} = %s" for k in fields])
+    values = list(fields.values()) + [doc_entry]
+
+    try:
+        cursor.execute(
+            f"UPDATE notas_cobranca SET {set_clause}, data_atualizacao = NOW() WHERE doc_entry = %s RETURNING *",
+            values
+        )
+        updated = cursor.fetchone()
+        if not updated:
+            raise HTTPException(status_code=404, detail="Nota não encontrada.")
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        cursor.close()
+        conn.close()
+
+    return updated
 
 @app.post("/api/sync")
 def trigger_sync():
@@ -403,14 +638,18 @@ def trigger_sync():
     # Usamos UpdateDate ge 'YYYY-MM-DD'
     since_date = last_sync.strftime('%Y-%m-%d') if last_sync else None
     
-    res_invoices = sync_invoices(since_date=since_date)
-    res_recebidas = sync_recebidas(since_date=since_date)
-    
-    return {
-        "status": "success",
-        "invoices": res_invoices,
-        "pagamentos_novos": res_recebidas
-    }
+    try:
+        res_invoices = sync_invoices(since_date=since_date)
+        res_recebidas = sync_recebidas(since_date=since_date)
+        
+        return {
+            "status": "success",
+            "invoices": res_invoices,
+            "pagamentos_novos": res_recebidas
+        }
+    except Exception as e:
+        print(f"❌ Erro na sincronização: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/sync/status")
 def get_sync_status():
@@ -421,6 +660,51 @@ def get_sync_status():
     cursor.close()
     conn.close()
     return {"last_sync": last_sync}
+
+# --- Autenticação ---
+@app.get("/api/usuarios")
+def list_usuarios():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT username FROM usuarios ORDER BY username ASC")
+    users = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [u["username"] for u in users]
+
+@app.post("/api/login")
+def login(req: LoginRequest):
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("SELECT * FROM usuarios WHERE username = %s AND password = %s", (req.username, req.password))
+    user = cursor.fetchone()
+    cursor.close()
+    conn.close()
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+    
+    token = jwt.encode({
+        "username": user["username"],
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+    }, SECRET_KEY, algorithm=ALGORITHM)
+    
+    return {"token": token, "username": user["username"]}
+
+@app.get("/api/contas-razao")
+def list_contas_razao():
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    cursor.execute("""
+        SELECT DISTINCT conta_razao_codigo, conta_razao_nome 
+        FROM notas_cobranca 
+        WHERE conta_razao_codigo IS NOT NULL AND conta_razao_codigo != ''
+        ORDER BY conta_razao_nome ASC
+    """)
+    contas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return contas
 
 # Servindo o Frontend Dinâmico (Vanilla HTML/JS) incrustado
 @app.get("/", response_class=HTMLResponse)

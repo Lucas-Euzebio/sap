@@ -1,8 +1,15 @@
 import os
+import sys
+from pathlib import Path
 import requests
 import argparse
 from dotenv import load_dotenv
 from datetime import datetime
+
+# Adiciona a raiz do projeto ao sys.path para permitir imports do módulo 'app'
+root_path = str(Path(__file__).resolve().parent.parent.parent)
+if root_path not in sys.path:
+    sys.path.append(root_path)
 
 from app.sap import login_sap
 import urllib3

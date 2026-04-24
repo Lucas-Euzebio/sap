@@ -32,3 +32,5 @@ dumps/
 
 # Postman collections
 service_layer_sap.postman_collection.json
+
+*.csv

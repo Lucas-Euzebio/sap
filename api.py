@@ -623,6 +623,61 @@ def update_nota(doc_entry: int, body: NotaUpdate):
 
     return updated
 
+@app.get("/api/documentos")
+def list_documentos(
+    search: Optional[str] = Query(None),
+    pdf_status: Optional[str] = Query(None),
+):
+    conn = get_db()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    query = """
+        SELECT doc_entry, nfse, card_code, card_name,
+               data_vencimento, valor_total, saldo_pendente,
+               status_cobranca, responsavel, data_pagamento
+        FROM notas_cobranca
+        WHERE 1=1
+    """
+    params = []
+    if search:
+        query += " AND (nfse ILIKE %s OR card_name ILIKE %s)"
+        params.extend([f"%{search}%", f"%{search}%"])
+    query += " ORDER BY data_vencimento DESC"
+    cursor.execute(query, params)
+    notas = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    result = []
+    for nota in notas:
+        nfse = nota.get("nfse")
+        tem_pdf = bool(nfse and os.path.exists(os.path.join("static", "anexos", f"nfse_{nfse}.pdf")))
+        if pdf_status == "com_pdf" and not tem_pdf:
+            continue
+        if pdf_status == "sem_pdf" and tem_pdf:
+            continue
+        result.append({**nota, "tem_pdf": tem_pdf})
+    return result
+
+
+@app.get("/api/documentos/{nfse}/pdf-status")
+def get_pdf_status(nfse: str):
+    tem_pdf = os.path.exists(os.path.join("static", "anexos", f"nfse_{nfse}.pdf"))
+    return {"nfse": nfse, "tem_pdf": tem_pdf}
+
+
+@app.post("/api/documentos/{nfse}/download")
+def download_nfse_pdf(nfse: str, background_tasks: BackgroundTasks):
+    from app.outlook import fetch_nfse_pdf
+    background_tasks.add_task(fetch_nfse_pdf, nfse)
+    return {"status": "iniciado", "nfse": nfse}
+
+
+@app.post("/api/documentos/download-faltantes")
+def download_faltantes(background_tasks: BackgroundTasks):
+    background_tasks.add_task(sync_missing_pdfs)
+    return {"status": "iniciado"}
+
+
 @app.post("/api/sync")
 def trigger_sync(background_tasks: BackgroundTasks):
     """Executa a sincronização delta com o SAP baseada na última atualização"""

@@ -974,6 +974,127 @@
                 transform: rotate(360deg);
             }
         }
+        /* ===== DOCUMENTOS VIEW ===== */
+        #documentos-view { padding: 1.5rem 2rem; animation: fadeIn 0.3s ease; display: none; }
+
+        .docs-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .docs-summary { display: flex; gap: 1.5rem; align-items: center; font-size: 0.85rem; color: var(--text-muted); }
+        .docs-summary b { font-size: 1rem; }
+        .docs-filters { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+
+        .docs-table-wrap {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .docs-thead, .docs-row {
+            display: grid;
+            grid-template-columns: 110px 1fr 130px 105px 170px 110px 90px;
+            padding: 0.75rem 1.25rem;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .docs-thead {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0,0,0,0.15);
+        }
+
+        .docs-row {
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+        }
+
+        .docs-row:last-child { border-bottom: none; }
+        .docs-row:hover { background: var(--surface-hover); }
+
+        .pdf-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.22rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        .pdf-chip.tem { background: rgba(16,185,129,0.15); color: #34d399; }
+        .pdf-chip.nao { background: rgba(245,158,11,0.15); color: #fbbf24; }
+
+        .btn-icon-sm {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.15s;
+            display: inline-flex;
+            align-items: center;
+        }
+        .btn-icon-sm:hover { background: rgba(59,130,246,0.15); border-color: var(--primary); color: var(--primary); }
+        .btn-icon-sm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .loader-sm {
+            display: inline-block;
+            width: 14px; height: 14px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Modal PDF */
+        .pdf-modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .pdf-modal-overlay.open { display: flex; }
+        .pdf-modal-box {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 950px;
+            height: 88vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .pdf-modal-header {
+            padding: 0.9rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
         /* Login Overlay */
         .login-overlay {
             position: fixed;
@@ -1047,6 +1168,7 @@
                 <a href="javascript:void(0)" class="nav-link" id="nav-dash" onclick="showView('dash')">Dashboard</a>
                 <a href="javascript:void(0)" class="nav-link active" id="nav-clientes" onclick="showView('clientes')">Contas a Receber</a>
                 <a href="javascript:void(0)" class="nav-link" id="nav-recebidas" onclick="showView('recebidas')">Contas Recebidas</a>
+                <a href="javascript:void(0)" class="nav-link" id="nav-documentos" onclick="showView('documentos')">Documentos</a>
             </nav>
         </div>
         <div class="header-right">
@@ -1669,7 +1791,62 @@
 
             </div>
         </div>
+
+        <!-- View: Documentos -->
+        <div id="documentos-view">
+            <div class="docs-toolbar">
+                <div class="docs-summary">
+                    <span>Total: <b id="doc-total">--</b></span>
+                    <span style="color:var(--border-color)">|</span>
+                    <span>Com PDF: <b id="doc-com-pdf" style="color:var(--success);">--</b></span>
+                    <span style="color:var(--border-color)">|</span>
+                    <span>Sem PDF: <b id="doc-sem-pdf" style="color:var(--warning);">--</b></span>
+                </div>
+                <div class="docs-filters">
+                    <input type="text" id="doc-search" class="form-control" placeholder="Buscar por NFSe ou cliente..." oninput="filterDocs()" style="width:260px;">
+                    <select id="doc-pdf-filter" class="form-control" onchange="loadDocumentos()">
+                        <option value="">Todos</option>
+                        <option value="com_pdf">Com PDF</option>
+                        <option value="sem_pdf">Sem PDF</option>
+                    </select>
+                    <button class="btn-sync" id="btn-download-faltantes" onclick="downloadFaltantes()">
+                        <i class="ph ph-download-simple"></i> Baixar Faltantes
+                    </button>
+                </div>
+            </div>
+            <div class="docs-table-wrap">
+                <div class="docs-thead">
+                    <span>NFSe</span>
+                    <span>Cliente</span>
+                    <span style="text-align:right">Valor</span>
+                    <span>Vencimento</span>
+                    <span>Status</span>
+                    <span style="text-align:center">PDF</span>
+                    <span style="text-align:center">Ações</span>
+                </div>
+                <div id="docs-list">
+                    <div class="loader"></div>
+                </div>
+            </div>
+        </div>
+
     </main>
+
+    <!-- Modal Visualizar PDF -->
+    <div class="pdf-modal-overlay" id="pdf-modal-overlay" onclick="if(event.target===this) closePdfModal();">
+        <div class="pdf-modal-box">
+            <div class="pdf-modal-header">
+                <span style="font-weight:600; display:flex; align-items:center; gap:0.5rem;">
+                    <i class="ph-fill ph-file-pdf" style="color:var(--danger);"></i>
+                    <span id="pdf-modal-title">Visualizar PDF</span>
+                </span>
+                <button onclick="closePdfModal()" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem;">
+                    <i class="ph ph-x"></i>
+                </button>
+            </div>
+            <iframe id="pdf-iframe" src="" style="flex:1; border:none;"></iframe>
+        </div>
+    </div>
 
     <script>
         const API_BASE = '/api';
@@ -1956,7 +2133,8 @@
             document.getElementById('clientes-view').style.display = (view === 'clientes' || view === 'recebidas') ? 'block' : 'none';
             document.getElementById('notas-view').style.display = view === 'notas' ? 'flex' : 'none';
             document.getElementById('dash-view').style.display = view === 'dash' ? 'block' : 'none';
-            
+            document.getElementById('documentos-view').style.display = view === 'documentos' ? 'block' : 'none';
+
             const titleElem = document.getElementById('main-title');
             if (titleElem) {
                 titleElem.innerText = currentViewMode === 'recebidas' ? 'Posição de Contas Recebidas' : 'Posição de Contas a Receber';
@@ -1967,26 +2145,27 @@
             document.getElementById('label-sum-prazo').innerText = isRec ? 'Pago no Prazo' : 'Total No Prazo';
             document.getElementById('label-sum-total').innerText = isRec ? 'Total Recebido' : 'Saldo Total Geral';
 
-            // Mostrar/Ocultar filtro de pagamento conforme a visão
             document.getElementById('group-filter-pagamento').style.display = isRec ? 'block' : 'none';
             if (!isRec) document.getElementById('date-range-pagamento-container').style.display = 'none';
-            else toggleDateRangePagamento(); 
+            else toggleDateRangePagamento();
 
-            // Navegacao
             document.getElementById('nav-clientes').classList.toggle('active', view === 'clientes');
             document.getElementById('nav-dash').classList.toggle('active', view === 'dash');
             document.getElementById('nav-recebidas').classList.toggle('active', view === 'recebidas');
+            document.getElementById('nav-documentos').classList.toggle('active', view === 'documentos');
 
             if (view === 'clientes' || view === 'dash' || view === 'recebidas') closeDetail();
-            
+
             if (!isPopState) {
                 if (view === 'dash') window.history.pushState({}, '', '?view=dash');
                 else if (view === 'recebidas') window.history.pushState({}, '', '?view=recebidas');
+                else if (view === 'documentos') window.history.pushState({}, '', '?view=documentos');
                 else if (view === 'clientes') window.history.pushState({}, '', window.location.pathname);
             }
 
             if (view === 'dash') renderDashboard();
             if (view === 'clientes' || view === 'recebidas') loadClientes();
+            if (view === 'documentos') loadDocumentos();
         }
 
         let dashDebounceTimer;
@@ -2701,6 +2880,111 @@
             link.click();
             document.body.removeChild(link);
         }
+
+        // ===== DOCUMENTOS =====
+        async function loadDocumentos() {
+            const search = document.getElementById('doc-search')?.value || '';
+            const pdfFilter = document.getElementById('doc-pdf-filter')?.value || '';
+            document.getElementById('docs-list').innerHTML = '<div class="loader"></div>';
+
+            const params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (pdfFilter) params.set('pdf_status', pdfFilter);
+
+            const res = await fetch(`${API_BASE}/documentos?${params}`);
+            if (!res.ok) return;
+            const docs = await res.json();
+            renderDocs(docs);
+        }
+
+        let _docFilterTimer;
+        function filterDocs() {
+            clearTimeout(_docFilterTimer);
+            _docFilterTimer = setTimeout(loadDocumentos, 350);
+        }
+
+        function renderDocs(docs) {
+            document.getElementById('doc-total').textContent = docs.length;
+            document.getElementById('doc-com-pdf').textContent = docs.filter(d => d.tem_pdf).length;
+            document.getElementById('doc-sem-pdf').textContent = docs.filter(d => !d.tem_pdf).length;
+
+            const list = document.getElementById('docs-list');
+            if (!docs.length) {
+                list.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:3rem 1rem;">Nenhum documento encontrado.</div>';
+                return;
+            }
+
+            list.innerHTML = docs.map(d => {
+                const venc = d.data_vencimento ? d.data_vencimento.split('T')[0] : '--';
+                const valor = d.valor_total != null
+                    ? 'R$ ' + parseFloat(d.valor_total).toLocaleString('pt-BR', {minimumFractionDigits:2})
+                    : '--';
+                const pdfChip = d.tem_pdf
+                    ? `<span class="pdf-chip tem"><i class="ph-fill ph-check-circle"></i> Disponível</span>`
+                    : `<span class="pdf-chip nao"><i class="ph ph-warning"></i> Ausente</span>`;
+                const statusColor = {
+                    'Pago': 'var(--success)',
+                    'Atrasado': 'var(--danger)',
+                    'No Prazo': '#60a5fa',
+                }[d.status_cobranca] || 'var(--text-muted)';
+
+                return `<div class="docs-row" id="doc-row-${d.nfse}">
+                    <span style="font-weight:600; color:var(--primary); font-size:0.82rem;">${d.nfse || '--'}</span>
+                    <span style="color:var(--text-muted); font-size:0.82rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${d.card_name || ''}">${d.card_name || '--'}</span>
+                    <span style="text-align:right; font-weight:600; font-size:0.82rem;">${valor}</span>
+                    <span style="font-size:0.82rem;">${venc}</span>
+                    <span style="font-size:0.8rem; color:${statusColor}; font-weight:600;">${d.status_cobranca || '--'}</span>
+                    <span style="text-align:center;">${pdfChip}</span>
+                    <span style="display:flex; gap:0.35rem; justify-content:center;">
+                        ${d.tem_pdf ? `<button class="btn-icon-sm" onclick="viewPdf('${d.nfse}')" title="Visualizar PDF"><i class="ph ph-eye"></i></button>` : ''}
+                        <button class="btn-icon-sm" id="btn-dl-${d.nfse}" onclick="downloadPdfNfse('${d.nfse}', this)" title="Buscar no e-mail"><i class="ph ph-download-simple"></i></button>
+                    </span>
+                </div>`;
+            }).join('');
+        }
+
+        async function downloadPdfNfse(nfse, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader-sm"></span>';
+            await fetch(`${API_BASE}/documentos/${nfse}/download`, { method: 'POST' });
+
+            let tries = 0;
+            const poll = setInterval(async () => {
+                const r = await fetch(`${API_BASE}/documentos/${nfse}/pdf-status`);
+                const data = await r.json();
+                tries++;
+                if (data.tem_pdf || tries >= 20) {
+                    clearInterval(poll);
+                    loadDocumentos();
+                }
+            }, 3000);
+        }
+
+        async function downloadFaltantes() {
+            const btn = document.getElementById('btn-download-faltantes');
+            btn.disabled = true;
+            btn.classList.add('loading');
+            btn.innerHTML = '<span class="loader-sm"></span> Baixando...';
+            await fetch(`${API_BASE}/documentos/download-faltantes`, { method: 'POST' });
+            setTimeout(() => {
+                btn.disabled = false;
+                btn.classList.remove('loading');
+                btn.innerHTML = '<i class="ph ph-download-simple"></i> Baixar Faltantes';
+                loadDocumentos();
+            }, 30000);
+        }
+
+        function viewPdf(nfse) {
+            document.getElementById('pdf-modal-title').textContent = `NFSe ${nfse}`;
+            document.getElementById('pdf-iframe').src = `/static/anexos/nfse_${nfse}.pdf`;
+            document.getElementById('pdf-modal-overlay').classList.add('open');
+        }
+
+        function closePdfModal() {
+            document.getElementById('pdf-modal-overlay').classList.remove('open');
+            document.getElementById('pdf-iframe').src = '';
+        }
+
     </script>
 </body>
 </html>

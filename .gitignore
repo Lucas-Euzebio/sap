@@ -34,3 +34,7 @@ dumps/
 service_layer_sap.postman_collection.json
 
 *.csv
+
+# Sessão e tokens do Outlook (não commitar)
+.outlook_tokens.json
+.outlook_session.json

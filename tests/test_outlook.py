@@ -1,87 +1,103 @@
-import pytest
-from unittest.mock import patch, MagicMock
-from app.outlook import fetch_nfse_pdf
 import os
-import base64
+import pytest
+from unittest.mock import MagicMock, patch
+from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
-@patch('app.outlook.requests.get')
-@patch('app.outlook.requests.post')
-def test_fetch_nfse_pdf_success(mock_post, mock_get):
-    # Mock do token response
-    mock_token_resp = MagicMock()
-    mock_token_resp.status_code = 200
-    mock_token_resp.json.return_value = {"access_token": "fake_token_123"}
-    mock_post.return_value = mock_token_resp
-    
-    # Mock do Graph API Email response
-    pdf_content = b'%PDF-1.4 Fake PDF file coming from tests'
-    pdf_b64 = base64.b64encode(pdf_content).decode('utf-8')
-    
-    fake_messages = {
-        "value": [
-            {
-                "id": "AAMk...",
-                "subject": "Nota Fiscal 5555",
-                "attachments": [
-                    {
-                        "@odata.type": "#microsoft.graph.fileAttachment",
-                        "name": "nfse_xml.xml",
-                        "contentBytes": "base64_xml"
-                    },
-                    {
-                        "@odata.type": "#microsoft.graph.fileAttachment",
-                        "name": "NFe_5555.pdf",
-                        "contentBytes": pdf_b64
-                    }
-                ]
-            }
-        ]
-    }
-    
-    mock_msg_resp = MagicMock()
-    mock_msg_resp.status_code = 200
-    mock_msg_resp.json.return_value = fake_messages
-    mock_get.return_value = mock_msg_resp
-    
-    env_vars = {
-        "AZURE_TENANT_ID": "123",
-        "AZURE_CLIENT_ID": "abc",
-        "AZURE_CLIENT_SECRET": "xyz",
-        "AZURE_USER_MAILBOX": "faturamento@empresa.com.br"
-    }
-    
-    with patch.dict(os.environ, env_vars):
-        result = fetch_nfse_pdf("5555")
-        
+
+def _make_mocks():
+    """Monta a cadeia de mocks: sync_playwright → browser → context → page → download."""
+    mock_download = MagicMock()
+
+    mock_dl_cm = MagicMock()
+    mock_dl_cm.__enter__ = MagicMock(return_value=mock_dl_cm)
+    mock_dl_cm.__exit__ = MagicMock(return_value=False)
+    mock_dl_cm.value = mock_download
+
+    mock_page = MagicMock()
+    mock_page.url = "https://outlook.office.com/mail/"
+    mock_page.expect_download.return_value = mock_dl_cm
+
+    mock_context = MagicMock()
+    mock_context.new_page.return_value = mock_page
+
+    mock_browser = MagicMock()
+    mock_browser.new_context.return_value = mock_context
+
+    mock_pw = MagicMock()
+    mock_pw.chromium.launch.return_value = mock_browser
+
+    mock_sync_pw = MagicMock()
+    mock_sync_pw.return_value.__enter__ = MagicMock(return_value=mock_pw)
+    mock_sync_pw.return_value.__exit__ = MagicMock(return_value=False)
+
+    return mock_sync_pw, mock_page, mock_download
+
+
+@patch("app.outlook.sync_playwright")
+def test_fetch_nfse_pdf_success(mock_sync_playwright, monkeypatch):
+    monkeypatch.setenv("OUTLOOK_EMAIL", "financeiro@zeusagro.com")
+    monkeypatch.setenv("OUTLOOK_PASSWORD", "senha_teste")
+
+    mock_sync_pw, mock_page, mock_download = _make_mocks()
+    mock_sync_playwright.side_effect = mock_sync_pw.side_effect
+    mock_sync_playwright.return_value = mock_sync_pw.return_value
+
+    from app.outlook import fetch_nfse_pdf
+    result = fetch_nfse_pdf("5555")
+
     assert result is not None
     assert result.endswith("nfse_5555.pdf")
-    assert os.path.exists(result)
-    
-    # Cleanup do arquivo fake gerado
-    os.remove(result)
+    mock_download.save_as.assert_called_once()
 
-@patch('app.outlook.requests.get')
-@patch('app.outlook.requests.post')
-def test_fetch_nfse_pdf_no_email_found(mock_post, mock_get):
-    mock_token_resp = MagicMock()
-    mock_token_resp.status_code = 200
-    mock_token_resp.json.return_value = {"access_token": "fake_token_123"}
-    mock_post.return_value = mock_token_resp
-    
-    # Retorna uma lista vazia de mensagens
-    mock_msg_resp = MagicMock()
-    mock_msg_resp.status_code = 200
-    mock_msg_resp.json.return_value = {"value": []}
-    mock_get.return_value = mock_msg_resp
-    
-    env_vars = {
-        "AZURE_TENANT_ID": "123",
-        "AZURE_CLIENT_ID": "abc",
-        "AZURE_CLIENT_SECRET": "xyz",
-        "AZURE_USER_MAILBOX": "faturamento@empresa.com.br"
-    }
-    
-    with patch.dict(os.environ, env_vars):
-        result = fetch_nfse_pdf("9999")
-        
+
+@patch("app.outlook.sync_playwright")
+def test_fetch_nfse_pdf_sem_credenciais(mock_sync_playwright, monkeypatch):
+    monkeypatch.delenv("OUTLOOK_EMAIL", raising=False)
+    monkeypatch.delenv("OUTLOOK_PASSWORD", raising=False)
+
+    from app.outlook import fetch_nfse_pdf
+    result = fetch_nfse_pdf("5555")
+
     assert result is None
+    mock_sync_playwright.assert_not_called()
+
+
+@patch("app.outlook.sync_playwright")
+def test_fetch_nfse_pdf_timeout(mock_sync_playwright, monkeypatch):
+    monkeypatch.setenv("OUTLOOK_EMAIL", "financeiro@zeusagro.com")
+    monkeypatch.setenv("OUTLOOK_PASSWORD", "senha_teste")
+
+    mock_sync_pw, mock_page, _ = _make_mocks()
+    mock_sync_playwright.return_value = mock_sync_pw.return_value
+
+    # Simula timeout ao clicar no primeiro email
+    mock_page.locator.return_value.first.click.side_effect = PlaywrightTimeout("timeout")
+
+    from app.outlook import fetch_nfse_pdf
+    result = fetch_nfse_pdf("9999")
+
+    assert result is None
+
+
+@patch("app.outlook.sync_playwright")
+def test_fetch_nfse_pdf_sessao_expirada_faz_login(mock_sync_playwright, monkeypatch, tmp_path):
+    monkeypatch.setenv("OUTLOOK_EMAIL", "financeiro@zeusagro.com")
+    monkeypatch.setenv("OUTLOOK_PASSWORD", "senha_teste")
+
+    mock_sync_pw, mock_page, mock_download = _make_mocks()
+    mock_sync_playwright.return_value = mock_sync_pw.return_value
+
+    # Simula sessão expirada: primeira URL é a tela de login
+    mock_page.url = "https://login.microsoftonline.com/common/oauth2/authorize"
+
+    # Após login, URL muda para mail
+    def goto_side_effect(url, **kwargs):
+        mock_page.url = "https://outlook.office.com/mail/"
+
+    mock_page.goto.side_effect = goto_side_effect
+
+    from app.outlook import fetch_nfse_pdf
+    result = fetch_nfse_pdf("1234")
+
+    # Verifica que tentou preencher o campo de senha (fluxo de login acionado)
+    mock_page.locator.assert_called()

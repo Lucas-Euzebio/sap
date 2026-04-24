@@ -5,6 +5,9 @@ from .utils import normalize_date
 
 import requests
 from datetime import datetime, timedelta
+import os
+import time
+from app.outlook import fetch_nfse_pdf
 
 
 def sync_invoices(since_date=None):
@@ -252,3 +255,35 @@ def sync_recebidas(since_date=None):
     conn.close()
     print(f"✅ Sincronização de Recebimentos Concluída! Total Novos: {novos_pagamentos}")
     return novos_pagamentos
+
+def sync_missing_pdfs():
+    """Busca em background as notas que têm NFSe, mas faltam PDF local."""
+    print("Começando verificação de PDFs baixados...")
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT DISTINCT nfse 
+        FROM notas_cobranca 
+        WHERE nfse IS NOT NULL AND nfse != '' AND nfse != 'S/N'
+    """)
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+
+    save_dir = "static/anexos"
+    os.makedirs(save_dir, exist_ok=True)
+
+    baixados = 0
+    for row in rows:
+        nfse = row[0]
+        # Checa se o arquivo existe
+        filepath = os.path.join(save_dir, f"nfse_{nfse}.pdf")
+        if not os.path.exists(filepath):
+            print(f"Baixando PDF faltante para NFSe: {nfse}")
+            # Se fosse produção de alto volume, poderíamos ter sleep aqui e etc.
+            res = fetch_nfse_pdf(nfse)
+            if res:
+                baixados += 1
+            time.sleep(1) # Delay simples para evitar abuse rating IMAP
+            
+    print(f"Verificação de PDFs concluída. {baixados} novos anexos baixados.")

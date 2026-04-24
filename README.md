@@ -6,6 +6,7 @@ Este repositório contém um protótipo de acompanhamento de contas a receber e 
 
 - Sincroniza notas fiscais de saída abertas do SAP (`Invoices`).
 - Sincroniza pagamentos recebidos do SAP (`IncomingPayments`).
+- Integração Automática Microsoft Graph: Busca e baixa anexos PDF de Notas Fiscais no Outlook.
 - Grava os dados em um banco PostgreSQL local.
 - Exibe informações de cliente e notas em um frontend simples com FastAPI.
 - Permite registrar histórico e observações de cobrança.
@@ -15,6 +16,7 @@ Este repositório contém um protótipo de acompanhamento de contas a receber e 
 - `api.py` — aplicação FastAPI com rotas REST e frontend embarcado.
 - `app/config.py` — configuração e leitura de variáveis de ambiente.
 - `app/db.py` — conexão com PostgreSQL.
+- `app/outlook.py` — integração via Microsoft Graph API para download automático de faturas em PDF no Outlook.
 - `app/sap.py` — autenticação no SAP Service Layer, chamada de endpoints e resolução de dados.
 - `app/sync.py` — lógica de sincronização de notas e recebimentos.
 - `setup_db.py` — cria o banco e as tabelas `notas_cobranca`, `observacoes_cliente` e `historico_cobranca`.
@@ -39,6 +41,12 @@ DB_PORT=5432
 DB_NAME=sap_cobrancas
 DB_USER=postgres
 DB_PASS=postgres
+
+# Integração com Outlook / Microsoft Graph API
+AZURE_TENANT_ID=id-do-tenant-sua-empresa
+AZURE_CLIENT_ID=id-do-aplicativo-zeus
+AZURE_CLIENT_SECRET=valor-secreto-do-aplicativo
+AZURE_USER_MAILBOX=email-compartilhado@sua-empresa.com.br
 ```
 
 ## Como usar

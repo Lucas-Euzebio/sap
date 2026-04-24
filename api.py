@@ -2,7 +2,7 @@ import os
 import datetime
 import jwt
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Query, Body
+from fastapi import FastAPI, HTTPException, Query, Body, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import psycopg2
@@ -10,7 +10,7 @@ from psycopg2.extras import RealDictCursor
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 from app.db import get_db_connection
-from app.sync import sync_invoices, sync_recebidas
+from app.sync import sync_invoices, sync_recebidas, sync_missing_pdfs
 
 # Configuração JWT
 SECRET_KEY = "zeus_agro_secret_key"
@@ -624,7 +624,7 @@ def update_nota(doc_entry: int, body: NotaUpdate):
     return updated
 
 @app.post("/api/sync")
-def trigger_sync():
+def trigger_sync(background_tasks: BackgroundTasks):
     """Executa a sincronização delta com o SAP baseada na última atualização"""
     conn = get_db()
     cursor = conn.cursor()
@@ -641,6 +641,9 @@ def trigger_sync():
     try:
         res_invoices = sync_invoices(since_date=since_date)
         res_recebidas = sync_recebidas(since_date=since_date)
+        
+        # Agenda task para baixar PDFs faltantes
+        background_tasks.add_task(sync_missing_pdfs)
         
         return {
             "status": "success",
